@@ -15,7 +15,7 @@ output "artifacts_bucket_arn" {
   value = var.create_artifacts_bucket ? module.synthetics_artifacts.s3_bucket_arn : null
 }
 
-output "syntetics_groups" {
+output "synthetics_groups" {
   value = [
     for key, group in aws_synthetics_group.this : {
       key  = key

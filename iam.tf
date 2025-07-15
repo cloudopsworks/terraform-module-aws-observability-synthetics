@@ -72,7 +72,7 @@ data "aws_iam_policy_document" "synthetic_policy" {
     ]
   }
   statement {
-    sid    = "AllowSynteticsMetrics"
+    sid    = "AllowSyntheticsMetrics"
     effect = "Allow"
     actions = [
       "cloudwatch:PutMetricData",

@@ -8,7 +8,7 @@
 #
 
 locals {
-  syntetics = merge([
+  synthetics = merge([
     for group in var.groups : {
       for canary in group.canaries : "${group.name}-${canary.name}" => {
         group             = group
@@ -41,7 +41,7 @@ resource "aws_synthetics_group" "this" {
 }
 
 resource "aws_synthetics_canary" "this" {
-  for_each                 = local.syntetics
+  for_each                 = local.synthetics
   artifact_s3_location     = "s3://${local.s3_location_bucket_name}"
   execution_role_arn       = aws_iam_role.this[each.value.group.name].arn
   name                     = each.value.canary_final_name
@@ -83,7 +83,7 @@ resource "aws_synthetics_canary" "this" {
 }
 
 resource "aws_synthetics_group_association" "this" {
-  for_each   = local.syntetics
+  for_each   = local.synthetics
   group_name = aws_synthetics_group.this[each.value.group.name].name
   canary_arn = aws_synthetics_canary.this[each.key].arn
 }
