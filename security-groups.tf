@@ -9,7 +9,7 @@
 
 resource "aws_security_group" "this" {
   for_each    = local.synth_groups
-  name        = format("sg-%s-%s", each.key, local.system_name)
+  name        = format("%s-%s-sg", each.key, local.system_name)
   description = "Security group for ${each.key} Synthetics canary"
   vpc_id      = var.vpc.vpc_id
   egress { # Allow all outbound traffic
