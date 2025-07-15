@@ -23,7 +23,7 @@ module "synthetics_artifacts" {
   source                                = "terraform-aws-modules/s3-bucket/aws"
   version                               = "~> 5.1"
   bucket                                = local.created_artifacts_bucket
-  create_bucket                         = create_artifacts_bucket
+  create_bucket                         = var.create_artifacts_bucket
   acl                                   = "private"
   block_public_acls                     = true
   block_public_policy                   = true
