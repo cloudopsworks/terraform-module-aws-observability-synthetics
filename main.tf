@@ -51,7 +51,7 @@ resource "aws_synthetics_canary" "this" {
   delete_lambda            = !try(each.value.canary.preserve_lambda, false)
   success_retention_period = try(each.value.canary.success_retention_period, 1)
   failure_retention_period = try(each.value.canary.failure_retention_period, 1)
-  zip_file                 = "${path.module}/scripts/${each.key}.zip"
+  zip_file                 = format("%s%s", local.zip_files[each.key].file_path, local.zip_files[each.key].file_name)
   schedule {
     expression          = each.value.canary.schedule_expression
     duration_in_seconds = try(each.value.canary.schedule_duration, null)
@@ -63,7 +63,7 @@ resource "aws_synthetics_canary" "this" {
 
   run_config {
     environment_variables = merge({
-      CONFIG_PATH = "./${each.key}_config.yaml"
+      CONFIG_PATH = "./${local.zip_files[each.key].file_name}"
       },
       try(each.value.canary.run_config.environment_variables, {})
     )
