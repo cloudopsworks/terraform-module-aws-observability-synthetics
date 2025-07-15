@@ -8,13 +8,22 @@
 #
 
 locals {
-  created_artifacts_bucket = "synthetics-artifacts-${local.system_name}"
+  created_artifacts_bucket = "synthetics-artifacts-${local.system_name}-${random_string.random.result}"
+}
+
+resource "random_string" "random" {
+  length  = 8
+  special = false
+  lower   = true
+  upper   = false
+  numeric = true
 }
 
 module "synthetics_artifacts" {
   source                                = "terraform-aws-modules/s3-bucket/aws"
   version                               = "~> 5.1"
   bucket                                = local.created_artifacts_bucket
+  create_bucket                         = create_artifacts_bucket
   acl                                   = "private"
   block_public_acls                     = true
   block_public_policy                   = true
