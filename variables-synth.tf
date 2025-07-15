@@ -53,6 +53,8 @@ variable "groups" {
 variable "sns_topic_name" {
   description = "Name of the SNS topic for notifications"
   type        = string
+  default     = ""
+  nullable    = false
 }
 
 variable "create_alarms" {
@@ -74,6 +76,7 @@ variable "artifacts_bucket" {
   description = "S3 bucket for storing Synthetics canary artifacts"
   type        = string
   default     = ""
+  nullable    = false
 }
 
 variable "create_artifacts_bucket" {
