@@ -65,7 +65,7 @@ resource "aws_s3_object" "script" {
   bucket      = local.s3_location_bucket_name
   key         = local.zip_files[each.key].bucket_key
   source      = local.zip_files[each.key].file_path
-  source_hash = local.hash_content[each.key] + local.hash_sources
+  source_hash = sha256(format("%s-%s", local.hash_content[each.key], local.hash_sources))
   tags = merge(
     local.all_tags,
     try(each.value.group.tags, {}),
