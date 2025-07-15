@@ -66,13 +66,13 @@ resource "aws_s3_object" "script" {
   key         = local.zip_files[each.key].bucket_key
   source      = local.zip_files[each.key].file_path
   source_hash = sha256(format("%s-%s", local.hash_content[each.key], local.hash_sources))
-  tags = merge(
-    local.all_tags,
-    try(each.value.group.tags, {}),
-    try(each.value.canary.tags, {}),
-    {
-      synthetic_group_key  = each.value.group.name
-      synthetic_canary_key = each.value.canary.name
-    }
-  )
+  # tags = merge(
+  #   local.all_tags,
+  #   try(each.value.group.tags, {}),
+  #   try(each.value.canary.tags, {}),
+  #   {
+  #     synthetic_group_key  = each.value.group.name
+  #     synthetic_canary_key = each.value.canary.name
+  #   }
+  # )
 }
