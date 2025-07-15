@@ -11,11 +11,9 @@ locals {
   # compute has from ${path.module}/sources
   hash_sources = base64sha256(join("", [for file_to_hash in fileset(".", "${path.module}/sources/**") : filesha256(file_to_hash)]))
   canary_content = {
-    for key, synthetic in local.synthetics : key => {
-      content = yamlencode({
-        requests = synthetic.canary.requests
-      })
-    }
+    for key, synthetic in local.synthetics : key => yamlencode({
+      requests = synthetic.canary.requests
+    })
   }
 }
 
