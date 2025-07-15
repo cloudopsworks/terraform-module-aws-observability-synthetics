@@ -52,8 +52,8 @@ resource "aws_synthetics_canary" "this" {
   success_retention_period = try(each.value.canary.success_retention_period, 1)
   failure_retention_period = try(each.value.canary.failure_retention_period, 1)
   #zip_file                 = format("%s%s", local.zip_files[each.key].file_path, local.zip_files[each.key].file_name)
-  s3_bucket = local.s3_location_bucket_name
-  s3_key = local.zip_files[each.key].bucket_key
+  s3_bucket  = local.s3_location_bucket_name
+  s3_key     = local.zip_files[each.key].bucket_key
   s3_version = aws_s3_object.script[each.key].version_id
   schedule {
     expression          = each.value.canary.schedule_expression

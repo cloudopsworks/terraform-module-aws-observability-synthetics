@@ -71,7 +71,7 @@ resource "aws_s3_object" "script" {
     try(each.value.group.tags, {}),
     try(each.value.canary.tags, {}),
     {
-      synthetic_group_key = each.value.group.name
+      synthetic_group_key  = each.value.group.name
       synthetic_canary_key = each.value.canary.name
     }
   )
