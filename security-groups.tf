@@ -19,4 +19,7 @@ resource "aws_security_group" "this" {
     cidr_blocks = ["0.0.0.0/0"]
   }
   tags = merge(local.all_tags, try(each.value.tags, {}))
+  depends_on = [
+    aws_iam_role.this
+  ]
 }
