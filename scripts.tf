@@ -9,14 +9,14 @@
 
 locals {
   # compute has from ${path.module}/sources
-  hash_sources = base64sha256(join("", [for file_to_hash in fileset(".", "${path.module}/sources/**") : filesha256(file_to_hash)]))
+  hash_sources = upper(sha256(join("", [for file_to_hash in fileset(".", "${path.module}/sources/**") : filesha256(file_to_hash)])))
   canary_content = {
     for key, synthetic in local.synthetics : key => yamlencode({
       requests = synthetic.canary.requests
     })
   }
   hash_content = {
-    for key, content in local.canary_content : key => base64sha256(content)
+    for key, content in local.canary_content : key => upper(sha256(content))
   }
   zip_files = {
     for key, content in local.canary_content : key => {
