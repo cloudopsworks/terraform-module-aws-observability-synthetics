@@ -20,6 +20,7 @@ locals {
   synth_groups = {
     for group in var.groups : group.name => group
   }
+  s3_location_bucket_name = var.create_artifacts_bucket ? module.synthetics_artifacts.s3_bucket_id : data.aws_s3_bucket.artifacts[0].bucket
 }
 
 data "aws_s3_bucket" "artifacts" {
@@ -41,7 +42,7 @@ resource "aws_synthetics_group" "this" {
 
 resource "aws_synthetics_canary" "this" {
   for_each                 = local.syntetics
-  artifact_s3_location     = var.create_artifacts_bucket ? module.synthetics_artifacts.s3_bucket_bucket_domain_name : data.aws_s3_bucket.artifacts[0].bucket_domain_name
+  artifact_s3_location     = "s3://${local.s3_location_bucket_name}"
   execution_role_arn       = aws_iam_role.this[each.value.group.name].arn
   name                     = each.value.canary_final_name
   start_canary             = try(each.value.canary.enabled, true)
