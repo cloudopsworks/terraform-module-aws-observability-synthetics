@@ -11,9 +11,9 @@ locals {
   # compute has from ${path.module}/sources
   hash_sources = base64sha256(join("", [for file_to_hash in fileset(".", "${path.module}/sources/**") : filesha256(file_to_hash)]))
   canary_content = {
-    for key, canary in local.synthetics : key => {
+    for key, synthetic in local.synthetics : key => {
       content = yamlencode({
-        requests = canary.requests
+        requests = synthetic.canary.requests
       })
     }
   }
@@ -38,7 +38,7 @@ resource "archive_file" "script" {
   type        = "zip"
   source_dir  = "${path.module}/sources"
   excludes = [
-    "${path.module}/sources/example*.yaml"
+    "example*.yaml"
   ]
   depends_on = [
     local_file.script_config
