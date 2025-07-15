@@ -20,8 +20,10 @@ locals {
   }
   zip_files = {
     for key, content in local.canary_content : key => {
-      file_path = "${path.module}/sources/"
-      file_name = "${key}_${substr(local.hash_sources, 0, 6)}${substr(local.hash_content[key], 0, 6)}_config.yaml"
+      file_path     = "${path.module}/sources/"
+      file_name     = "${key}_config.yaml"
+      bucket_key    = "upload/scripts/${key}.zip"
+      zip_file_path = "${path.module}/scripts/${key}.zip"
     }
   }
 }
@@ -41,9 +43,9 @@ resource "null_resource" "this" {
 
 resource "archive_file" "script" {
   for_each    = local.synthetics
-  output_path = "${path.module}/scripts/${each.key}.zip"
+  output_path = local.zip_files[each.key].zip_file_path
   type        = "zip"
-  source_dir  = "${path.module}/sources"
+  source_dir  = local.zip_files[each.key].file_path
   excludes = [
     "example*.yaml"
   ]
@@ -56,4 +58,21 @@ resource "archive_file" "script" {
       local_file.script_config[each.key].id,
     ]
   }
+}
+
+resource "aws_s3_object" "script" {
+  for_each    = local.synthetics
+  bucket      = local.s3_location_bucket_name
+  key         = local.zip_files[each.key].bucket_key
+  source      = local.zip_files[each.key].file_path
+  source_hash = local.hash_content[each.key] + local.hash_sources
+  tags = merge(
+    local.all_tags,
+    try(each.value.group.tags, {}),
+    try(each.value.canary.tags, {}),
+    {
+      synthetic_group_key = each.value.group.name
+      synthetic_canary_key = each.value.canary.name
+    }
+  )
 }
