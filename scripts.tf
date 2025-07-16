@@ -20,7 +20,7 @@ locals {
   }
   zip_files = {
     for key, content in local.canary_content : key => {
-      file_path     = "${path.module}/sources/"
+      file_path     = "${path.module}/sources/python/"
       file_name     = "${key}_config.yaml"
       bucket_key    = "upload/scripts/${key}.zip"
       zip_file_path = "${path.module}/scripts/${key}.zip"

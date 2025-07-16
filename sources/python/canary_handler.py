@@ -9,6 +9,7 @@ import traceback
 
 # AWS Synthetics imports
 from aws_synthetics.common import synthetics_logger as logger
+from aws_synthetics.selenium import synthetics_webdriver as webdriver
 
 # Configure urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -355,6 +356,7 @@ def handler(event, context):
         logger.error(error_message)
         logger.error(traceback.format_exc())
         result['error'] = error_message
+        webdriver.add_execution_error(error_message, e)
 
     finally:
         logger.info("AWS Synthetics canary completed")
