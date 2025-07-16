@@ -113,6 +113,13 @@ resource "aws_iam_role" "this" {
   for_each           = local.synth_groups
   name               = format("synth-%s-%s-role", each.value.name, local.system_name_short)
   assume_role_policy = data.aws_iam_policy_document.assume_role_policy.json
+  tags = merge(
+    local.all_tags,
+    try(each.value.tags, {}),
+    {
+      synthetic_group_key = each.key
+    }
+  )
 }
 
 resource "aws_iam_role_policy" "synthetic_policy" {

@@ -99,6 +99,7 @@ variable "alarms_defaults" {
 variable "vpc" {
   description = "VPC configuration for the Synthetics canaries"
   type = object({
+    enabled            = optional(bool, true)
     vpc_id             = string
     subnet_ids         = list(string)
     security_group_ids = optional(list(string), [])

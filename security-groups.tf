@@ -8,7 +8,10 @@
 #
 
 resource "aws_security_group" "this" {
-  for_each    = local.synth_groups
+  for_each = {
+    for key, group in local.synth_groups : key => group
+    if var.vpc.enabled
+  }
   name        = format("%s-%s-sg", each.key, local.system_name)
   description = "Security group for ${each.key} Synthetics canary"
   vpc_id      = var.vpc.vpc_id
