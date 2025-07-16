@@ -166,4 +166,8 @@ resource "aws_s3_object" "script_custom" {
     synthetic_group_key  = each.value.group.name
     synthetic_canary_key = each.value.canary.name
   }
+  depends_on = [
+    archive_file.script_custom_node,
+    archive_file.script_custom_python,
+  ]
 }
