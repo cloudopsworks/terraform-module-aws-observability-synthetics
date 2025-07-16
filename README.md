@@ -121,7 +121,8 @@ groups:
         schedule_duration: 300 # (optional) Duration in seconds for the canary schedule, defaults to null
         success_retention_period: 7 # (optional) Retention period in Days for successful runs, defaults to 1 Day
         failure_retention_period: 7 # (optional) Retention period in Days for failed runs, defaults to 1 Day
-        requests_type: URL | API | SCRIPT      # (required) Type of request, defaults to URL
+        requests_type: "URL" | "SCRIPT" | "API" # (required) Type of request, defaults to URL
+        requests_script: |                      # (optional) Script for the canary, required if type is SCRIPT
         requests:
           - url: "https://example.com"    # (optional) URL for the canary, required if type is URL
             script: "path/to/script.js"   # (optional) Path to the script for the canary, required if type is SCRIP
@@ -322,17 +323,21 @@ Available targets:
 
 | Name | Type |
 |------|------|
-| [archive_file.script](https://registry.terraform.io/providers/hashicorp/archive/latest/docs/resources/file) | resource |
+| [archive_file.script_custom](https://registry.terraform.io/providers/hashicorp/archive/latest/docs/resources/file) | resource |
+| [archive_file.script_url](https://registry.terraform.io/providers/hashicorp/archive/latest/docs/resources/file) | resource |
 | [aws_cloudwatch_metric_alarm.canary_failed](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudwatch_metric_alarm) | resource |
 | [aws_ec2_tag.synthetic_enis](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ec2_tag) | resource |
 | [aws_iam_role.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
 | [aws_iam_role_policy.synthetic_policy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy) | resource |
-| [aws_s3_object.script](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_object) | resource |
+| [aws_s3_object.script_custom](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_object) | resource |
+| [aws_s3_object.script_url](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_object) | resource |
 | [aws_security_group.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group) | resource |
 | [aws_synthetics_canary.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/synthetics_canary) | resource |
 | [aws_synthetics_group.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/synthetics_group) | resource |
 | [aws_synthetics_group_association.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/synthetics_group_association) | resource |
 | [local_file.script_config](https://registry.terraform.io/providers/hashicorp/local/latest/docs/resources/file) | resource |
+| [local_file.script_custom_node](https://registry.terraform.io/providers/hashicorp/local/latest/docs/resources/file) | resource |
+| [local_file.script_custom_python](https://registry.terraform.io/providers/hashicorp/local/latest/docs/resources/file) | resource |
 | [null_resource.this](https://registry.terraform.io/providers/hashicorp/null/latest/docs/resources/resource) | resource |
 | [random_string.random](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/string) | resource |
 | [aws_caller_identity.current](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/caller_identity) | data source |

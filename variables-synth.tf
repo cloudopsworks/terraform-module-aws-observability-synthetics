@@ -31,7 +31,8 @@
 #         schedule_duration: 300 # (optional) Duration in seconds for the canary schedule, defaults to null
 #         success_retention_period: 7 # (optional) Retention period in Days for successful runs, defaults to 1 Day
 #         failure_retention_period: 7 # (optional) Retention period in Days for failed runs, defaults to 1 Day
-#         requests_type: URL | API | SCRIPT      # (required) Type of request, defaults to URL
+#         requests_type: "URL" | "SCRIPT" | "API" # (required) Type of request, defaults to URL
+#         requests_script: |                      # (optional) Script for the canary, required if type is SCRIPT
 #         requests:
 #           - url: "https://example.com"    # (optional) URL for the canary, required if type is URL
 #             script: "path/to/script.js"   # (optional) Path to the script for the canary, required if type is SCRIP
