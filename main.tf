@@ -54,7 +54,7 @@ resource "aws_synthetics_canary" "this" {
   execution_role_arn   = aws_iam_role.this[each.value.group.name].arn
   name                 = each.value.canary_final_name
   start_canary         = try(each.value.canary.enabled, true)
-  runtime_version      = try(each.value.canary.runtime_version, local.request_scripts_map[each.value.canary.request_script_ref], local.default_runtime_version)
+  runtime_version      = try(each.value.canary.runtime_version, local.request_scripts_map[each.value.canary.request_script_ref].runtime_version, local.default_runtime_version)
   handler = try(each.value.canary.requests_type, "URL") == "URL" ? "canary_handler.handler" : (
     try(each.value.canary.requests_type, "URL") == "SCRIPT" ? try(each.value.canary.handler, "custom_handler.handler") :
     try(each.value.canary.handler, "")
