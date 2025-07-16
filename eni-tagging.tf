@@ -10,7 +10,7 @@
 data "aws_network_interfaces" "synthetic_enis" {
   for_each = {
     for key, group in local.synth_groups : key => group
-    if var.vpc.enabled
+    if var.vpc.enabled && try(group.vpc.enabled, true)
   }
   filter {
     name   = "interface-type"
@@ -41,7 +41,7 @@ resource "aws_ec2_tag" "synthetic_enis" {
           value         = value_tag
         }
       }
-    ] if var.vpc.enabled
+    ] if var.vpc.enabled && try(group.vpc.enabled, true)
   ])...)
   resource_id = data.aws_network_interfaces.synthetic_enis[each.value.group_key].ids[each.value.subnet_number]
   key         = each.value.key

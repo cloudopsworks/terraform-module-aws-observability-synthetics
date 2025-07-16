@@ -11,67 +11,111 @@ copyrights:
 github_repo: cloudopsworks/terraform-module-aws-observability-synthetics
 
 description: |-
-  AWS Observability Synthetics Module for comprehensive monitoring and testing infrastructure. This module provides advanced management of AWS Synthetics canaries with features including URL endpoint monitoring, API testing, custom script execution, and VPC-based deployments. Supports CloudWatch integration for metrics and alarms with SNS notifications, organized canary grouping, and flexible configuration options for various monitoring scenarios.
+  AWS Observability Synthetics Module for comprehensive monitoring and testing infrastructure. This module enables sophisticated management of AWS Synthetics canaries with advanced features including:
+  - URL endpoint and API monitoring with detailed assertions
+  - Custom Python script execution with Selenium support
+  - VPC-based deployments with security group management
+  - CloudWatch metrics integration and alarm management
+  - SNS notifications with priority-based routing
+  - Artifact management with S3 bucket integration
+  - Flexible scheduling with cron and rate expressions
+  - Environment variable configuration for runtime parameters
+  - Organized canary grouping for logical separation
+  - Customizable retention policies for test artifacts
 
 # Introduction to the project
 introduction: |-
-  This Terraform module provides comprehensive management of AWS Synthetics canaries for monitoring endpoints, APIs, and web applications. It supports:
-  - Organized canary groups for better resource management and logical separation
-  - VPC-based canary execution with custom subnet and security group configuration
-  - Flexible monitoring schedules with cron and rate expressions
-  - Configurable retention periods for test results and artifacts
-  - Environment variable management for custom script parameters
-  - CloudWatch alarms integration with customizable thresholds and conditions
-  - SNS notifications for monitoring results with multiple topic support
-  - Custom artifact storage in S3 with optional bucket creation
-  - Priority-based alarm configuration (P1-P5)
-  - Multiple assertion types for response validation
-  - Support for both API and URL monitoring scenarios
+  This Terraform module provides comprehensive management of AWS Synthetics canaries for monitoring endpoints, APIs, and web applications. It offers:
+
+  Core Features:
+  - Organized canary groups with logical separation and tagging
+  - VPC-based execution with automated security group management
+  - Flexible scheduling using cron or rate expressions
+  - Configurable retention policies for artifacts and results
+
+  Monitoring Capabilities:
+  - HTTP/HTTPS endpoint monitoring with detailed assertions
+  - API testing with request/response validation
+  - Custom Python scripts with Selenium support
+  - Response time and availability tracking
+
+  Infrastructure Integration:
+  - VPC deployment with subnet selection
+  - Security group automatic configuration
+  - ENI tagging for resource tracking
+  - IAM role management for execution
+
+  Observability Features:
+  - CloudWatch metrics integration
+  - Priority-based alarms (P1-P5)
+  - Multiple SNS topic support
+  - Custom S3 artifact storage
+  - Environment variable configuration
 
 # How to use this project
 usage: |-
   Configure canaries using YAML format in your Terraform/Terragrunt configuration:
 
   # Terraform Configuration
+  ```yaml
   groups:
-    - name: "monitoring-group"
-      tags:
+    - name: "example-group"
+      tags:                # (optional) Tags for the group
         Environment: "Production"
-        Cost-Center: "Operations"
-      canaries:
-        - name: "endpoint-monitor"
+      vpc:
+        enabled: true | false # (optional) Whether to enable VPC for the group, defaults to true
+      default_run_config:         # (optional) Default run configuration for the group
+        environment_variables: {} # (optional) Environment variables for the canary, defaults to empty map
+        timeout: 60               # (optional) Timeout in seconds for the canary, defaults to null
+        memory_mb: 128            # (optional) Memory in MB for the canary, defaults to null
+        tracing: true | false     # (optional) Whether to enable xray tracing, defaults to null
+      canaries:           # List of canaries in the group
+        - name: "example-canary"
+          description: "This is an example canary" # (optional) Description of the canary
+          enabled: true | false # (optional) Whether the canary is enabled, defaults to true
+          tags:            # (optional) Tags for the canary
+            Environment: "Production"
+          preserve_lambda: true | false # (optional) Whether to preserve the Lambda function after deletion, defaults to false
           runtime_version: "syn-python-selenium-6.0"
-          schedule_expression: "rate(5 minutes)"
-          requests_type: "URL"
-          description: "API Health Check Monitor"
+          schedule_expression: "rate(5 minutes)" # (optional) Schedule for the canary, defaults to "rate(5 minutes)" or cron expression "cron(0/5 * * * ? *)"
+          schedule_duration: 300 # (optional) Duration in seconds for the canary schedule, defaults to null
+          success_retention_period: 7 # (optional) Retention period in Days for successful runs, defaults to 1 Day
+          failure_retention_period: 7 # (optional) Retention period in Days for failed runs, defaults to 1 Day
+          requests_type: URL | API | SCRIPT      # (required) Type of request, defaults to URL
           requests:
-            - url: "https://api.example.com/health"
-              method: "GET"
-              headers:
+            - url: "https://example.com"    # (optional) URL for the canary, required if type is URL
+              script: "path/to/script.js"   # (optional) Path to the script for the canary, required if type is SCRIP
+              timeout: 30                   # (optional) Timeout in seconds for the request, defaults to 30 seconds
+              method: GET | POST | PUT | DELETE # (optional) HTTP method for the request, defaults to GET
+              headers:                     # (optional) Headers for the request, defaults to empty map
                 Content-Type: "application/json"
-                Authorization: "Bearer ${env:API_TOKEN}"
-              assertions:
-                - type: "STATUS_CODE"
-                  operator: "EQUALS"
-                  value: 200
-                - type: "RESPONSE_TIME"
-                  operator: "LESS_THAN"
-                  value: 2000
+              body: "request body"         # (optional) Body for the request, required if method is POST or PUT
+              assertions:                # (optional) Assertions for the canary, defaults to empty list
+                - type: STATUS_CODE # (required) Type of assertion, e.g., STATUS_CODE, RESPONSE_TIME, etc.
+                  operator: EQUALS | NOT_EQUALS | GREATER_THAN | LESS_THAN # (required) Operator for the assertion
+                  value: 200 # (required) Value for the assertion, e.g., expected status code
+              retry:
+                count: 3 # (optional) Number of retry attempts, defaults to 3
+                interval: 5 # (optional) Interval in seconds between retries, defaults to 5 seconds
           run_config:
-            timeout_in_seconds: 60
-            memory_mb: 1024
-          alarms:
-            enabled: true
-            priority: 2
-            metric: "SuccessPercent"
-            threshold: 90
-            period: 300
-            evaluation_periods: 2
-            notifications:
-              - sns_topic_name: "urgent-alerts"
-          tags:
-            Service: "API-Gateway"
-
+            environment_variables: {} # (optional) Environment variables for the canary, defaults to empty map
+            timeout: 60               # (optional) Timeout in seconds for the canary, defaults to null
+            memory_mb: 128            # (optional) Memory in MB for the canary, defaults to null
+            tracing: true | false     # (optional) Whether to enable xray tracing, defaults to null
+          alarms:                  # (optional) Alarms configuration for the canary
+            enabled: true | false # (optional) Whether to create alarms for the canary, defaults to true
+            priority: 1           # (optional) Priority of the alarms, defaults to 4
+            description: "This alarm is triggered when the canary fails." # (optional) Description of the alarm, defaults to a generic message
+            evaluation_periods: "1" # (optional) Number of evaluation periods for the alarm, defaults to 1
+            period: "900"          # (optional) Period in seconds for the alarm, defaults to 900 seconds (15minutes)
+            threshold: "90"       # (optional) Threshold for the alarm, defaults to 90% SuccessPercent
+            metric: "SuccessPercent" | "Failure" | "Duration" # (optional) Metric for the alarm, defaults to "SuccessPercent"
+            condition: "GreaterThanOrEqualToThreshold" | "GreaterThanThreshold" | "LessThanThreshold" | "LessThanThreshold" # (optional) Condition for the alarm, defaults to "GreaterThanOrEqualToThreshold"
+            statistic: "Average" | "Sum" | "Minimum" | "Maximum" # (optional) Statistic for the alarm, defaults to "Average"
+            notifications: # (optional) Notification settings for the alarm
+              - sns_topic_name: "topic-name" # (optional) Name of the SNS topic for notifications
+              - sns_topic_arn: "topic-name" # (optional) ARN of the SNS topic for notifications
+  ```
   # Terragrunt Configuration
   # terragrunt.hcl
   include "root" {
