@@ -34,7 +34,7 @@ resource "aws_ec2_tag" "synthetic_enis" {
           try(group.tags, {}),
           {
             synthetic_group_key = group.name
-            name = format("synthetics-group-%s-%s", group.name, local.system_name)
+            Name = format("synthetics-group-%s-%s", group.name, local.system_name)
           }) : "${subnet_nr}-${key}-${key_tag}" => {
           subnet_number = subnet_nr
           group_key     = key
