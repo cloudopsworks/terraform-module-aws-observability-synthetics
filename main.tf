@@ -8,6 +8,7 @@
 #
 
 locals {
+  default_runtime_version = "syn-python-selenium-6.0"
   synthetics = merge([
     for group in var.groups : {
       for canary in group.canaries : "${group.name}-${canary.name}" => {
@@ -46,15 +47,14 @@ resource "aws_synthetics_canary" "this" {
   execution_role_arn       = aws_iam_role.this[each.value.group.name].arn
   name                     = each.value.canary_final_name
   start_canary             = try(each.value.canary.enabled, true)
-  runtime_version          = try(each.value.canary.runtime_version, "syn-python-selenium-6.0")
+  runtime_version          = try(each.value.canary.runtime_version, local.default_runtime_version)
   handler                  = try(each.value.canary.handler, "canary_handler.handler")
   delete_lambda            = !try(each.value.canary.preserve_lambda, false)
   success_retention_period = try(each.value.canary.success_retention_period, 1)
   failure_retention_period = try(each.value.canary.failure_retention_period, 1)
-  #zip_file                 = format("%s%s", local.zip_files[each.key].file_path, local.zip_files[each.key].file_name)
-  s3_bucket  = local.s3_location_bucket_name
-  s3_key     = local.zip_files[each.key].bucket_key
-  s3_version = aws_s3_object.script[each.key].version_id
+  s3_bucket                = local.s3_location_bucket_name
+  s3_key                   = local.zip_files[each.key].bucket_key
+  s3_version               = aws_s3_object.script[each.key].version_id
   schedule {
     expression          = each.value.canary.schedule_expression
     duration_in_seconds = try(each.value.canary.schedule_duration, null)
