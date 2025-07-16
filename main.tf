@@ -22,6 +22,13 @@ locals {
     for group in var.groups : group.name => group
   }
   s3_location_bucket_name = var.create_artifacts_bucket ? module.synthetics_artifacts.s3_bucket_id : data.aws_s3_bucket.artifacts[0].bucket
+  request_scripts_map = {
+    for script in var.request_scripts : script.name => {
+      name            = script.name
+      content         = script.content
+      runtime_version = script.runtime_version
+    }
+  }
 }
 
 data "aws_s3_bucket" "artifacts" {
@@ -47,9 +54,9 @@ resource "aws_synthetics_canary" "this" {
   execution_role_arn   = aws_iam_role.this[each.value.group.name].arn
   name                 = each.value.canary_final_name
   start_canary         = try(each.value.canary.enabled, true)
-  runtime_version      = try(each.value.canary.runtime_version, local.default_runtime_version)
+  runtime_version      = try(each.value.canary.runtime_version, local.request_scripts_map[each.value.canary.request_script_ref].runtime_version, local.default_runtime_version)
   handler = try(each.value.canary.requests_type, "URL") == "URL" ? "canary_handler.handler" : (
-    try(each.value.canary.requests_script, "URL") == "SCRIPT" ? try(each.value.canary.handler, "custom_handler.handler") :
+    try(each.value.canary.requests_type, "URL") == "SCRIPT" ? try(each.value.canary.handler, "custom_handler.handler") :
     try(each.value.canary.handler, "")
 
   )
@@ -59,7 +66,7 @@ resource "aws_synthetics_canary" "this" {
   s3_bucket                = local.s3_location_bucket_name
   s3_key                   = local.zip_files[each.key].bucket_key
   s3_version = try(each.value.canary.requests_type, "URL") == "URL" ? aws_s3_object.script_url[each.key].version_id : (
-    try(each.value.canary.requests_script, "URL") == "SCRIPT" ? aws_s3_object.script_custom[each.key].version_id : null
+    try(each.value.canary.requests_type, "URL") == "SCRIPT" ? aws_s3_object.script_custom[each.key].version_id : null
   )
   schedule {
     expression          = each.value.canary.schedule_expression

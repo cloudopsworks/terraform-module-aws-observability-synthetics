@@ -10,7 +10,7 @@
 
 [![cloudopsworks][logo]](https://cloudops.works/)
 
-# Terraform AWS Observability Synthetics Module
+# AWS Observability Synthetics Terraform Module
 
 
 
@@ -122,7 +122,7 @@ groups:
         success_retention_period: 7 # (optional) Retention period in Days for successful runs, defaults to 1 Day
         failure_retention_period: 7 # (optional) Retention period in Days for failed runs, defaults to 1 Day
         requests_type: "URL" | "SCRIPT" | "API" # (required) Type of request, defaults to URL
-        requests_script: |                      # (optional) Script for the canary, required if type is SCRIPT
+        request_script: |                      # (optional) Script for the canary, required if type is SCRIPT
         requests:
           - url: "https://example.com"    # (optional) URL for the canary, required if type is URL
             script: "path/to/script.js"   # (optional) Path to the script for the canary, required if type is SCRIP
@@ -193,10 +193,63 @@ inputs = {
 ## Quick Start
 
 1. Prepare your AWS environment:
-   - Create VPC and subnets for canary execution
-   - Set up IAM permissions for Synthetics execution
-   - Create S3 bucket for artifacts (optional, can be created by module)
-   - Create SNS topics for notifications
+   - Ensure AWS credentials are configured
+   - Create or identify target VPC and subnets
+   - Prepare SNS topics for notifications (optional)
+
+2. Create Terragrunt configuration (terragrunt.hcl):
+   ```hcl
+   include "root" {
+     path = find_in_parent_folders()
+   }
+
+   terraform {
+     source = "cloudopsworks/terraform-module-aws-observability-synthetics//."
+   }
+
+   inputs = {
+     create_artifacts_bucket = true
+     artifacts_bucket = "my-synthetics-artifacts"
+     default_sns_topic_name = "monitoring-alerts"
+
+     vpc = {
+       enabled = true
+       vpc_id = dependency.vpc.outputs.vpc_id
+       subnet_ids = dependency.vpc.outputs.private_subnets
+     }
+   }
+   ```
+
+3. Define your monitoring groups in a YAML file:
+   ```yaml
+   groups:
+     - name: "api-monitoring"
+       tags:
+         Environment: "Production"
+       canaries:
+         - name: "api-health"
+           runtime_version: "syn-python-selenium-6.0"
+           requests_type: "API"
+           requests:
+             - url: "https://api.example.com/health"
+               method: "GET"
+               assertions:
+                 - type: "STATUS_CODE"
+                   operator: "EQUALS"
+                   value: 200
+   ```
+
+4. Apply configuration:
+   ```bash
+   terragrunt init
+   terragrunt plan
+   terragrunt apply
+   ```
+
+5. Verify deployment:
+   - Check AWS Synthetics console
+   - Monitor CloudWatch metrics
+   - Test notifications
 
 2. Create Terraform/Terragrunt configuration:
    ```hcl
@@ -323,7 +376,8 @@ Available targets:
 
 | Name | Type |
 |------|------|
-| [archive_file.script_custom](https://registry.terraform.io/providers/hashicorp/archive/latest/docs/resources/file) | resource |
+| [archive_file.script_custom_node](https://registry.terraform.io/providers/hashicorp/archive/latest/docs/resources/file) | resource |
+| [archive_file.script_custom_python](https://registry.terraform.io/providers/hashicorp/archive/latest/docs/resources/file) | resource |
 | [archive_file.script_url](https://registry.terraform.io/providers/hashicorp/archive/latest/docs/resources/file) | resource |
 | [aws_cloudwatch_metric_alarm.canary_failed](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudwatch_metric_alarm) | resource |
 | [aws_ec2_tag.synthetic_enis](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ec2_tag) | resource |
@@ -353,17 +407,18 @@ Available targets:
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
-| <a name="input_alarms_defaults"></a> [alarms\_defaults](#input\_alarms\_defaults) | Default settings for CloudWatch alarms | <pre>object({<br/>    enabled            = optional(bool, true)<br/>    evaluation_periods = optional(string, "1")<br/>    period             = optional(string, "900")<br/>    threshold          = optional(string, "90")<br/>    metric             = optional(string, "SuccessPercent")<br/>    condition          = optional(string, "LessThanThreshold")<br/>    description        = optional(string, "This alarm is triggered when the canary fails.")<br/>  })</pre> | `{}` | no |
-| <a name="input_artifacts_bucket"></a> [artifacts\_bucket](#input\_artifacts\_bucket) | S3 bucket for storing Synthetics canary artifacts | `string` | `""` | no |
-| <a name="input_create_alarms"></a> [create\_alarms](#input\_create\_alarms) | Flag to create CloudWatch alarms for the Synthetics canaries | `bool` | `true` | no |
-| <a name="input_create_artifacts_bucket"></a> [create\_artifacts\_bucket](#input\_create\_artifacts\_bucket) | Flag to create the S3 bucket for Synthetics canary artifacts | `bool` | `false` | no |
-| <a name="input_default_sns_topic_name"></a> [default\_sns\_topic\_name](#input\_default\_sns\_topic\_name) | Name of the SNS topic for notifications | `string` | `""` | no |
+| <a name="input_alarms_defaults"></a> [alarms\_defaults](#input\_alarms\_defaults) | (optional) Default settings for CloudWatch alarms | <pre>object({<br/>    enabled            = optional(bool, true)<br/>    evaluation_periods = optional(string, "1")<br/>    period             = optional(string, "900")<br/>    threshold          = optional(string, "90")<br/>    metric             = optional(string, "SuccessPercent")<br/>    condition          = optional(string, "LessThanThreshold")<br/>    description        = optional(string, "This alarm is triggered when the canary fails.")<br/>  })</pre> | `{}` | no |
+| <a name="input_artifacts_bucket"></a> [artifacts\_bucket](#input\_artifacts\_bucket) | (optional) S3 bucket for storing Synthetics canary artifacts | `string` | `""` | no |
+| <a name="input_create_alarms"></a> [create\_alarms](#input\_create\_alarms) | (optional) Flag to create CloudWatch alarms for the Synthetics canaries, defaults to true | `bool` | `true` | no |
+| <a name="input_create_artifacts_bucket"></a> [create\_artifacts\_bucket](#input\_create\_artifacts\_bucket) | (optional) Flag to create the S3 bucket for Synthetics canary artifacts, required if artifacts\_bucket is not provided | `bool` | `false` | no |
+| <a name="input_default_sns_topic_name"></a> [default\_sns\_topic\_name](#input\_default\_sns\_topic\_name) | (optional) Name of the SNS topic for notifications, defaults to empty string | `string` | `""` | no |
 | <a name="input_extra_tags"></a> [extra\_tags](#input\_extra\_tags) | Extra tags to add to the resources | `map(string)` | `{}` | no |
 | <a name="input_groups"></a> [groups](#input\_groups) | Settings for the synthetics configurations | `any` | `[]` | no |
 | <a name="input_is_hub"></a> [is\_hub](#input\_is\_hub) | Is this a hub or spoke configuration? | `bool` | `false` | no |
 | <a name="input_org"></a> [org](#input\_org) | Organization details | <pre>object({<br/>    organization_name = string<br/>    organization_unit = string<br/>    environment_type  = string<br/>    environment_name  = string<br/>  })</pre> | n/a | yes |
+| <a name="input_request_scripts"></a> [request\_scripts](#input\_request\_scripts) | (optional) Array of request scripts for the Synthetics canaries | <pre>list(object({<br/>    name    = string<br/>    content = string<br/>  }))</pre> | `[]` | no |
 | <a name="input_spoke_def"></a> [spoke\_def](#input\_spoke\_def) | Spoke ID Number, must be a 3 digit number | `string` | `"001"` | no |
-| <a name="input_vpc"></a> [vpc](#input\_vpc) | VPC configuration for the Synthetics canaries | <pre>object({<br/>    enabled            = optional(bool, true)<br/>    vpc_id             = string<br/>    subnet_ids         = list(string)<br/>    security_group_ids = optional(list(string), [])<br/>  })</pre> | n/a | yes |
+| <a name="input_vpc"></a> [vpc](#input\_vpc) | (required) VPC configuration for the Synthetics canaries | <pre>object({<br/>    enabled            = optional(bool, true)<br/>    vpc_id             = optional(string, "")<br/>    subnet_ids         = optional(list(string), [])<br/>    security_group_ids = optional(list(string), [])<br/>  })</pre> | n/a | yes |
 
 ## Outputs
 
@@ -406,7 +461,7 @@ Please use the [issue tracker](https://github.com/cloudopsworks/terraform-module
 
 ## Copyrights
 
-Copyright © 2024-2025 [Cloud Ops Works LLC](https://cloudops.works)
+Copyright © 2024-2025-2025 [Cloud Ops Works LLC](https://cloudops.works)
 
 
 
@@ -485,10 +540,10 @@ This project is maintained by [Cloud Ops Works LLC][website].
   [readme_footer_link]: https://cloudops.works/readme/footer/link?utm_source=github&utm_medium=readme&utm_campaign=cloudopsworks/terraform-module-aws-observability-synthetics&utm_content=readme_footer_link
   [readme_commercial_support_img]: https://cloudops.works/readme/commercial-support/img
   [readme_commercial_support_link]: https://cloudops.works/readme/commercial-support/link?utm_source=github&utm_medium=readme&utm_campaign=cloudopsworks/terraform-module-aws-observability-synthetics&utm_content=readme_commercial_support_link
-  [share_twitter]: https://twitter.com/intent/tweet/?text=Terraform+AWS+Observability+Synthetics+Module&url=https://github.com/cloudopsworks/terraform-module-aws-observability-synthetics
-  [share_linkedin]: https://www.linkedin.com/shareArticle?mini=true&title=Terraform+AWS+Observability+Synthetics+Module&url=https://github.com/cloudopsworks/terraform-module-aws-observability-synthetics
+  [share_twitter]: https://twitter.com/intent/tweet/?text=AWS+Observability+Synthetics+Terraform+Module&url=https://github.com/cloudopsworks/terraform-module-aws-observability-synthetics
+  [share_linkedin]: https://www.linkedin.com/shareArticle?mini=true&title=AWS+Observability+Synthetics+Terraform+Module&url=https://github.com/cloudopsworks/terraform-module-aws-observability-synthetics
   [share_reddit]: https://reddit.com/submit/?url=https://github.com/cloudopsworks/terraform-module-aws-observability-synthetics
   [share_facebook]: https://facebook.com/sharer/sharer.php?u=https://github.com/cloudopsworks/terraform-module-aws-observability-synthetics
   [share_googleplus]: https://plus.google.com/share?url=https://github.com/cloudopsworks/terraform-module-aws-observability-synthetics
-  [share_email]: mailto:?subject=Terraform+AWS+Observability+Synthetics+Module&body=https://github.com/cloudopsworks/terraform-module-aws-observability-synthetics
+  [share_email]: mailto:?subject=AWS+Observability+Synthetics+Terraform+Module&body=https://github.com/cloudopsworks/terraform-module-aws-observability-synthetics
   [beacon]: https://ga-beacon.cloudops.works/G-7XWMFVFXZT/cloudopsworks/terraform-module-aws-observability-synthetics?pixel&cs=github&cm=readme&an=terraform-module-aws-observability-synthetics

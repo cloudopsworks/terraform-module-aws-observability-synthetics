@@ -30,7 +30,8 @@
 
 | Name | Type |
 |------|------|
-| [archive_file.script_custom](https://registry.terraform.io/providers/hashicorp/archive/latest/docs/resources/file) | resource |
+| [archive_file.script_custom_node](https://registry.terraform.io/providers/hashicorp/archive/latest/docs/resources/file) | resource |
+| [archive_file.script_custom_python](https://registry.terraform.io/providers/hashicorp/archive/latest/docs/resources/file) | resource |
 | [archive_file.script_url](https://registry.terraform.io/providers/hashicorp/archive/latest/docs/resources/file) | resource |
 | [aws_cloudwatch_metric_alarm.canary_failed](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudwatch_metric_alarm) | resource |
 | [aws_ec2_tag.synthetic_enis](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ec2_tag) | resource |
@@ -60,17 +61,18 @@
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
-| <a name="input_alarms_defaults"></a> [alarms\_defaults](#input\_alarms\_defaults) | Default settings for CloudWatch alarms | <pre>object({<br/>    enabled            = optional(bool, true)<br/>    evaluation_periods = optional(string, "1")<br/>    period             = optional(string, "900")<br/>    threshold          = optional(string, "90")<br/>    metric             = optional(string, "SuccessPercent")<br/>    condition          = optional(string, "LessThanThreshold")<br/>    description        = optional(string, "This alarm is triggered when the canary fails.")<br/>  })</pre> | `{}` | no |
-| <a name="input_artifacts_bucket"></a> [artifacts\_bucket](#input\_artifacts\_bucket) | S3 bucket for storing Synthetics canary artifacts | `string` | `""` | no |
-| <a name="input_create_alarms"></a> [create\_alarms](#input\_create\_alarms) | Flag to create CloudWatch alarms for the Synthetics canaries | `bool` | `true` | no |
-| <a name="input_create_artifacts_bucket"></a> [create\_artifacts\_bucket](#input\_create\_artifacts\_bucket) | Flag to create the S3 bucket for Synthetics canary artifacts | `bool` | `false` | no |
-| <a name="input_default_sns_topic_name"></a> [default\_sns\_topic\_name](#input\_default\_sns\_topic\_name) | Name of the SNS topic for notifications | `string` | `""` | no |
+| <a name="input_alarms_defaults"></a> [alarms\_defaults](#input\_alarms\_defaults) | (optional) Default settings for CloudWatch alarms | <pre>object({<br/>    enabled            = optional(bool, true)<br/>    evaluation_periods = optional(string, "1")<br/>    period             = optional(string, "900")<br/>    threshold          = optional(string, "90")<br/>    metric             = optional(string, "SuccessPercent")<br/>    condition          = optional(string, "LessThanThreshold")<br/>    description        = optional(string, "This alarm is triggered when the canary fails.")<br/>  })</pre> | `{}` | no |
+| <a name="input_artifacts_bucket"></a> [artifacts\_bucket](#input\_artifacts\_bucket) | (optional) S3 bucket for storing Synthetics canary artifacts | `string` | `""` | no |
+| <a name="input_create_alarms"></a> [create\_alarms](#input\_create\_alarms) | (optional) Flag to create CloudWatch alarms for the Synthetics canaries, defaults to true | `bool` | `true` | no |
+| <a name="input_create_artifacts_bucket"></a> [create\_artifacts\_bucket](#input\_create\_artifacts\_bucket) | (optional) Flag to create the S3 bucket for Synthetics canary artifacts, required if artifacts\_bucket is not provided | `bool` | `false` | no |
+| <a name="input_default_sns_topic_name"></a> [default\_sns\_topic\_name](#input\_default\_sns\_topic\_name) | (optional) Name of the SNS topic for notifications, defaults to empty string | `string` | `""` | no |
 | <a name="input_extra_tags"></a> [extra\_tags](#input\_extra\_tags) | Extra tags to add to the resources | `map(string)` | `{}` | no |
 | <a name="input_groups"></a> [groups](#input\_groups) | Settings for the synthetics configurations | `any` | `[]` | no |
 | <a name="input_is_hub"></a> [is\_hub](#input\_is\_hub) | Is this a hub or spoke configuration? | `bool` | `false` | no |
 | <a name="input_org"></a> [org](#input\_org) | Organization details | <pre>object({<br/>    organization_name = string<br/>    organization_unit = string<br/>    environment_type  = string<br/>    environment_name  = string<br/>  })</pre> | n/a | yes |
+| <a name="input_request_scripts"></a> [request\_scripts](#input\_request\_scripts) | (optional) Array of request scripts for the Synthetics canaries | <pre>list(object({<br/>    name    = string<br/>    content = string<br/>  }))</pre> | `[]` | no |
 | <a name="input_spoke_def"></a> [spoke\_def](#input\_spoke\_def) | Spoke ID Number, must be a 3 digit number | `string` | `"001"` | no |
-| <a name="input_vpc"></a> [vpc](#input\_vpc) | VPC configuration for the Synthetics canaries | <pre>object({<br/>    enabled            = optional(bool, true)<br/>    vpc_id             = string<br/>    subnet_ids         = list(string)<br/>    security_group_ids = optional(list(string), [])<br/>  })</pre> | n/a | yes |
+| <a name="input_vpc"></a> [vpc](#input\_vpc) | (required) VPC configuration for the Synthetics canaries | <pre>object({<br/>    enabled            = optional(bool, true)<br/>    vpc_id             = optional(string, "")<br/>    subnet_ids         = optional(list(string), [])<br/>    security_group_ids = optional(list(string), [])<br/>  })</pre> | n/a | yes |
 
 ## Outputs
 
