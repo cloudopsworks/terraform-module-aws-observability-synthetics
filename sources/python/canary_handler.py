@@ -110,7 +110,7 @@ def evaluate_assertion(assertion: Dict[str, Any], actual_value: Any) -> bool:
         raise ValueError(f"Unsupported operator: {operator}")
 
 
-    def get_canary_user_agent_string() -> str:
+def get_canary_user_agent_string() -> str:
     """
     Get the user agent string for the canary.
     Replaces webdriver.get_canary_user_agent_string().
@@ -133,7 +133,7 @@ def evaluate_assertion(assertion: Dict[str, Any], actual_value: Any) -> bool:
         return "AWS-Synthetics/1.0 (Python/urllib3)"
 
 
-    def save_request_response_data(name: str, response_data: Dict[str, Any]) -> None:
+def save_request_response_data(name: str, response_data: Dict[str, Any]) -> None:
     """
     Save request/response data to artifacts.
     Replacement for common.take_screenshot().
@@ -158,7 +158,7 @@ def evaluate_assertion(assertion: Dict[str, Any], actual_value: Any) -> bool:
         logger.warning(f"Failed to save response data: {str(e)}")
 
 
-    def make_http_request(url: str, method: str, headers: Dict[str, str], body: str, timeout: int) -> Tuple[int, str, Dict[str, Any], float]:
+def make_http_request(url: str, method: str, headers: Dict[str, str], body: str, timeout: int) -> Tuple[int, str, Dict[str, Any], float]:
     """
     Make an HTTP request using urllib.
 
@@ -214,7 +214,7 @@ def evaluate_assertion(assertion: Dict[str, Any], actual_value: Any) -> bool:
 
     return status_code, response_body, response_time
 
-    def process_url_request(request: Dict[str, Any]) -> bool:
+def process_url_request(request: Dict[str, Any]) -> bool:
     """
     Process a URL-based request.
 

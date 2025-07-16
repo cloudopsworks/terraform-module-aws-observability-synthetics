@@ -1,6 +1,6 @@
-PyYAML==6.0
-urllib3==2.0.5
-certifi==2023.7.22
+PyYAML~=6.0
+urllib3~=2.4
+certifi~=2025.1
 # The following libraries are provided by the AWS Synthetics runtime
 # and do not need to be included in the deployment package
 # aws-synthetics-common
