@@ -23,7 +23,7 @@ locals {
   }
   s3_location_bucket_name = var.create_artifacts_bucket ? module.synthetics_artifacts.s3_bucket_id : data.aws_s3_bucket.artifacts[0].bucket
   request_scripts_map = {
-    for script in local.request_scripts_map : script.name => {
+    for script in var.request_scripts : script.name => {
       name            = script.name
       content         = script.content
       runtime_version = script.runtime_version
