@@ -25,4 +25,7 @@ resource "aws_security_group" "this" {
   depends_on = [
     aws_iam_role.this
   ]
+  lifecycle {
+    create_before_destroy = true
+  }
 }
