@@ -117,8 +117,7 @@ def get_canary_user_agent_string() -> str:
     try:
         # Try to get user agent from AWS Synthetics if available
         try:
-            from aws_synthetics.selenium import synthetics_webdriver
-            return synthetics_webdriver.get_canary_user_agent_string()
+            return webdriver.get_canary_user_agent_string()
         except (ImportError, AttributeError):
             pass
 
@@ -356,7 +355,6 @@ def handler(event, context):
         logger.error(error_message)
         logger.error(traceback.format_exc())
         result['error'] = error_message
-        webdriver.add_execution_error(error_message, e)
 
     finally:
         logger.info("AWS Synthetics canary completed")
