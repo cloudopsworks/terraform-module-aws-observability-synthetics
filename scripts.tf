@@ -93,7 +93,7 @@ resource "local_file" "script_custom_node" {
     if upper(try(synth.canary.requests_type, "URL")) == "SCRIPT" && strcontains(try(synth.canary.runtime_version, local.default_runtime_version), "nodejs")
   }
   content         = each.value.canary.requests_script
-  filename        = "${path.module}/sources/custom/${key}/nodejs/node_modules/custom_handler.js"
+  filename        = "${path.module}/sources/custom/${each.key}/nodejs/node_modules/custom_handler.js"
   file_permission = "0644"
 }
 
@@ -103,7 +103,7 @@ resource "local_file" "script_custom_python" {
     if upper(try(synth.canary.requests_type, "URL")) == "SCRIPT" && strcontains(try(synth.canary.runtime_version, local.default_runtime_version), "python")
   }
   content         = each.value.canary.requests_script
-  filename        = "${path.module}/sources/custom/${key}/python/custom_handler.py"
+  filename        = "${path.module}/sources/custom/${each.key}/python/custom_handler.py"
   file_permission = "0644"
 }
 
@@ -114,7 +114,7 @@ resource "archive_file" "script_custom_node" {
   }
   output_path = local.zip_files[each.key].zip_file_path
   type        = "zip"
-  source_dir  = "${path.module}/sources/custom/${key}/"
+  source_dir  = "${path.module}/sources/custom/${each.key}/"
   excludes = [
     "**/example*.yaml",
     "**/requirements.txt",
@@ -137,7 +137,7 @@ resource "archive_file" "script_custom_python" {
   }
   output_path = local.zip_files[each.key].zip_file_path
   type        = "zip"
-  source_dir  = "${path.module}/sources/custom/${key}/"
+  source_dir  = "${path.module}/sources/custom/${each.key}/"
   excludes = [
     "**/example*.yaml",
     "**/requirements.txt",
