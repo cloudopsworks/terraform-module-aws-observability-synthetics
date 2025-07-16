@@ -60,7 +60,7 @@ resource "aws_synthetics_canary" "this" {
     duration_in_seconds = try(each.value.canary.schedule_duration, null)
   }
   dynamic "vpc_config" {
-    for_each = var.vpc.enabled && try(group.vpc.enabled, true) ? [1] : []
+    for_each = var.vpc.enabled && try(each.value.group.vpc.enabled, true) ? [1] : []
     content {
       subnet_ids         = var.vpc.subnet_ids
       security_group_ids = concat(var.vpc.security_group_ids, [aws_security_group.this[each.value.group.name].id])
