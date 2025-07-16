@@ -366,9 +366,15 @@ def handler(event, context):
         error_message = f"Error in canary execution: {str(e)}"
         logger.error(error_message)
         logger.error(traceback.format_exc())
-        result['error'] = error_message
+        raise e
 
     finally:
-        logger.info("AWS Synthetics canary completed")
+        logger.info("AWS Synthetics canary completed successfuly.")
+
+    # If the canary was not successful, raise an error as exception
+    if not result['success']:
+        error_message = "Canary execution failed in one or more of its assertions, check logs for details."
+        logger.error(error_message)
+        raise Exception(error_message)
 
     return result
