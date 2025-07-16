@@ -66,7 +66,7 @@ resource "aws_synthetics_canary" "this" {
 
   run_config {
     environment_variables = merge({
-      CONFIG_PATH = "./${local.zip_files[each.key].file_name}"
+      CONFIG_PATH = "/opt/python/${local.zip_files[each.key].file_name}"
       },
       try(each.value.canary.run_config.environment_variables, {})
     )

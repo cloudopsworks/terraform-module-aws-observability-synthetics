@@ -57,8 +57,8 @@ data "aws_iam_policy_document" "synthetic_policy" {
       "logs:PutLogEvents",
     ]
     resources = [
-      "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/*",
-      "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/*:*"
+      "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/cwsyn-*",
+      "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/cwsyn-*:*"
     ]
   }
   statement {
@@ -98,7 +98,10 @@ data "aws_iam_policy_document" "synthetic_policy" {
       "ec2:DescribeNetworkInterfaces",
       "ec2:DescribeSecurityGroups",
       "ec2:DescribeSubnets",
-      "ec2:DescribeVpcs"
+      "ec2:DescribeVpcs",
+      "ec2:DetachNetworkInterface",
+      "ec2:AttachNetworkInterface",
+      "ec2:ModifyNetworkInterfaceAttribute",
     ]
     resources = [
       "*"
