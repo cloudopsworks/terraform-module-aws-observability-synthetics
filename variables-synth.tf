@@ -87,8 +87,10 @@ variable "alarms_defaults" {
   type = object({
     enabled            = optional(bool, true)
     evaluation_periods = optional(string, "1")
-    period             = optional(string, "60")
-    threshold          = optional(string, "1")
+    period             = optional(string, "900")
+    threshold          = optional(string, "90")
+    metric             = optional(string, "SuccessPercent")
+    condition          = optional(string, "LessThanThreshold")
     description        = optional(string, "This alarm is triggered when the canary fails.")
   })
   default = {}
