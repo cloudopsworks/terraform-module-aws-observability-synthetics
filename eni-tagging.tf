@@ -28,22 +28,22 @@ data "aws_network_interfaces" "synthetic_enis" {
 resource "aws_ec2_tag" "synthetic_enis" {
   for_each = merge(flatten([
     for key, group in local.synth_groups : [
-      for eni in data.aws_network_interfaces.synthetic_enis[key].ids : {
+      for subnet_nr in range(length(var.vpc.subnet_ids)) : {
         for key_tag, value_tag in merge(
           local.all_tags,
           try(group.tags, {}),
           {
-            synthetic_group_key = group.name,
-          }
-          ) : "${eni}-${key}-${key_tag}" => {
-          eni_id = eni
-          key    = key_tag
-          value  = value_tag
+            synthetic_group_key = group.name
+          }) : "${subnet_nr}-${key}-${key_tag}" => {
+          subnet_number = subnet_nr
+          group_key     = key
+          key           = key_tag
+          value         = value_tag
         }
       }
-    ]
+    ] if var.vpc.enabled
   ])...)
-  resource_id = each.value.eni_id
+  resource_id = data.aws_network_interfaces.synthetic_enis[each.value.group_key].ids[each.value.subnet_number]
   key         = each.value.key
   value       = each.value.value
 }
