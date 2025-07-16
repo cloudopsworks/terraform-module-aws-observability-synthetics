@@ -20,7 +20,7 @@ locals {
     for key, content in local.canary_content : key => upper(sha256(content))
   }
   zip_files = {
-    for key, content in local.canary_content : key => {
+    for key, content in local.synthetics : key => {
       file_path     = "${path.module}/sources/standard/python/"
       file_name     = "${key}_config.yaml"
       bucket_key    = "upload/scripts/${key}.zip"
@@ -90,31 +90,31 @@ resource "aws_s3_object" "script_url" {
 resource "local_file" "script_custom_node" {
   for_each = {
     for key, synth in local.synthetics : key => synth
-    if upper(try(synth.canary.requests_type, "URL")) == "SCRIPT" && strcontains(try(synth.canary.runtime_version, local.default_runtime_version), "nodejs")
+    if upper(try(synth.canary.requests_type, "URL")) == "SCRIPT" && strcontains(try(local.request_scripts_map[synth.canary.request_script_ref].runtime_version, synth.canary.runtime_version, local.default_runtime_version), "nodejs")
   }
-  content         = each.value.canary.requests_script
-  filename        = "${path.module}/sources/custom/nodejs/node_modules/custom_handler.js"
+  content         = try(local.request_scripts_map[each.value.canary.request_script_ref].content, each.value.canary.request_script)
+  filename        = "${path.module}/sources/custom/${each.key}/nodejs/node_modules/custom_handler.js"
   file_permission = "0644"
 }
 
 resource "local_file" "script_custom_python" {
   for_each = {
     for key, synth in local.synthetics : key => synth
-    if upper(try(synth.canary.requests_type, "URL")) == "SCRIPT" && strcontains(try(synth.canary.runtime_version, local.default_runtime_version), "python")
+    if upper(try(synth.canary.requests_type, "URL")) == "SCRIPT" && strcontains(try(local.request_scripts_map[synth.canary.request_script_ref].runtime_version, synth.canary.runtime_version, local.default_runtime_version), "python")
   }
-  content         = each.value.canary.requests_script
-  filename        = "${path.module}/sources/custom/python/custom_handler.py"
+  content         = try(local.request_scripts_map[each.value.canary.request_script_ref].content, each.value.canary.request_script)
+  filename        = "${path.module}/sources/custom/${each.key}/python/custom_handler.py"
   file_permission = "0644"
 }
 
 resource "archive_file" "script_custom_node" {
   for_each = {
     for key, synth in local.synthetics : key => synth
-    if upper(try(synth.canary.requests_type, "URL")) == "SCRIPT"
+    if upper(try(synth.canary.requests_type, "URL")) == "SCRIPT" && strcontains(try(local.request_scripts_map[synth.canary.request_script_ref].runtime_version, synth.canary.runtime_version, local.default_runtime_version), "nodejs")
   }
   output_path = local.zip_files[each.key].zip_file_path
   type        = "zip"
-  source_dir  = "${path.module}/sources/custom/"
+  source_dir  = "${path.module}/sources/custom/${each.key}/"
   excludes = [
     "**/example*.yaml",
     "**/requirements.txt",
@@ -133,11 +133,11 @@ resource "archive_file" "script_custom_node" {
 resource "archive_file" "script_custom_python" {
   for_each = {
     for key, synth in local.synthetics : key => synth
-    if upper(try(synth.canary.requests_type, "URL")) == "SCRIPT"
+    if upper(try(synth.canary.requests_type, "URL")) == "SCRIPT" && strcontains(try(local.request_scripts_map[synth.canary.request_script_ref].runtime_version, synth.canary.runtime_version, local.default_runtime_version), "python")
   }
   output_path = local.zip_files[each.key].zip_file_path
   type        = "zip"
-  source_dir  = "${path.module}/sources/custom/"
+  source_dir  = "${path.module}/sources/custom/${each.key}/"
   excludes = [
     "**/example*.yaml",
     "**/requirements.txt",
@@ -161,9 +161,13 @@ resource "aws_s3_object" "script_custom" {
   bucket      = local.s3_location_bucket_name
   key         = local.zip_files[each.key].bucket_key
   source      = try(archive_file.script_custom_node[each.key].output_path, archive_file.script_custom_python[each.key].output_path)
-  source_hash = sha256(format("%s-%s", local.hash_content[each.key], local.hash_sources))
+  source_hash = try(archive_file.script_custom_node[each.key].output_sha256, archive_file.script_custom_python[each.key].output_sha256)
   tags = {
     synthetic_group_key  = each.value.group.name
     synthetic_canary_key = each.value.canary.name
   }
+  depends_on = [
+    archive_file.script_custom_node,
+    archive_file.script_custom_python,
+  ]
 }
