@@ -26,7 +26,7 @@ data "aws_network_interfaces" "synthetic_enis" {
 }
 
 resource "aws_ec2_tag" "synthetic_enis" {
-  for_each = merge([
+  for_each = merge(flatten([
     for key, group in local.synth_groups : [
       for eni in data.aws_network_interfaces.synthetic_enis[key].ids : {
         for tag in merge(
@@ -42,7 +42,7 @@ resource "aws_ec2_tag" "synthetic_enis" {
         }
       }
     ]
-  ]...)
+  ])...)
   resource_id = each.value.eni_id
   key         = each.value.key
   value       = each.value.value
