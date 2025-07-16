@@ -103,8 +103,8 @@ variable "vpc" {
   description = "VPC configuration for the Synthetics canaries"
   type = object({
     enabled            = optional(bool, true)
-    vpc_id             = string
-    subnet_ids         = list(string)
+    vpc_id             = optional(string, "")
+    subnet_ids         = optional(list(string), [])
     security_group_ids = optional(list(string), [])
   })
 }
