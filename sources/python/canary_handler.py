@@ -13,7 +13,12 @@ from aws_synthetics.selenium import synthetics_webdriver as webdriver
 
 # Configure urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-http = urllib3.PoolManager(cert_reqs='CERT_REQUIRED', ca_certs=certifi.where())
+http = urllib3.PoolManager(
+    cert_reqs='CERT_REQUIRED',
+    ca_certs=certifi.where(),
+    retries=urllib3.Retry(3, backoff_factor=0.5)
+)
+
 
 def load_yaml_config(file_path: str) -> Dict[str, Any]:
     """
@@ -140,43 +145,50 @@ def make_http_request(url: str, method: str, headers: Dict[str, str], body: str,
         timeout: Request timeout in seconds
 
     Returns:
-        Tuple containing (status_code, response_body, response_time)
+        Tuple containing (status_code, response_body, response_headers, response_time)
 
     Raises:
         Exception: If there is an error making the request
     """
     logger.info(f"Making {method} request to {url}")
 
-    # Create request object
-    request = urllib3.request.Request(url, method=method)
-
-    # Add headers
-    for key, value in headers.items():
-        request.add_header(key, value)
-
-    # Add body if needed
-    data = None
-    if body and method in ['POST', 'PUT']:
-        data = body.encode('utf-8')
-
     start_time = time.time()
-
     try:
-        # Make the request
-        with urllib3.request.urlopen(request, data=data, timeout=timeout) as response:
-            status_code = response.status
-            response_body = response.read().decode('utf-8')
-            response_headers = dict(response.getheaders())
-    except urllib3.error.HTTPError as e:
-        # Handle HTTP errors (e.g., 404, 500)
-        status_code = e.code
-        response_body = e.read().decode('utf-8')
-    except urllib3.error.URLError as e:
-        # Handle connection errors
-        raise Exception(f"Connection error: {str(e)}")
+        # Prepare request data
+        request_data = body.encode('utf-8') if body and method in ['POST', 'PUT'] else None
+
+        # Make the request using the global PoolManager
+        response = http.request(
+            method=method,
+            url=url,
+            headers=headers,
+            body=request_data,
+            timeout=timeout,
+            preload_content=False
+        )
+
+        # Read response data
+        status_code = response.status
+        try:
+            response_body = response.data.decode('utf-8')
+        except UnicodeDecodeError:
+            logger.warning("Failed to decode response as UTF-8, using raw bytes")
+            response_body = str(response.data)
+
+        response_headers = dict(response.headers)
+
+        # Clean up
+        response.release_conn()
+
+    except urllib3.exceptions.HTTPError as e:
+        logger.error(f"HTTP error occurred: {str(e)}")
+        raise Exception(f"HTTP error: {str(e)}")
+    except urllib3.exceptions.TimeoutError as e:
+        logger.error(f"Request timed out: {str(e)}")
+        raise Exception(f"Timeout error: {str(e)}")
     except Exception as e:
-        # Handle other errors
-        raise Exception(f"Error making request: {str(e)}")
+        logger.error(f"Unexpected error during request: {str(e)}")
+        raise Exception(f"Request error: {str(e)}")
 
     end_time = time.time()
     response_time = end_time - start_time

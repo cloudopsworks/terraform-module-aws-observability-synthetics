@@ -41,7 +41,7 @@ resource "null_resource" "this" {
   }
   provisioner "local-exec" {
     command     = "python3 -m pip install -r requirements.txt --target ./python --platform manylinux_2_17_x86_64 --python-version 3.11 --no-deps --upgrade"
-    working_dir = "${path.module}/sources/"
+    working_dir = "${path.module}/sources/python"
   }
 }
 
@@ -49,7 +49,7 @@ resource "archive_file" "script" {
   for_each    = local.synthetics
   output_path = local.zip_files[each.key].zip_file_path
   type        = "zip"
-  source_dir  = local.zip_files[each.key].file_path
+  source_dir  = "${path.module}/sources/"
   excludes = [
     "example*.yaml"
   ]
