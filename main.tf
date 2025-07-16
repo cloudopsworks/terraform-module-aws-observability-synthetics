@@ -42,7 +42,7 @@ resource "aws_synthetics_group" "this" {
 
 resource "aws_synthetics_canary" "this" {
   for_each                 = local.synthetics
-  artifact_s3_location     = local.s3_location_bucket_name
+  artifact_s3_location     = "s3://${local.s3_location_bucket_name}"
   execution_role_arn       = aws_iam_role.this[each.value.group.name].arn
   name                     = each.value.canary_final_name
   start_canary             = try(each.value.canary.enabled, true)
