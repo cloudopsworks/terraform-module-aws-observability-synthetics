@@ -12,6 +12,8 @@
 #   - name: "example-group"
 #     tags:                # (optional) Tags for the group
 #       Environment: "Production"
+#     vpc:
+#       enabled: true | false # (optional) Whether to enable VPC for the group, defaults to true
 #     default_run_config:         # (optional) Default run configuration for the group
 #       environment_variables: {} # (optional) Environment variables for the canary, defaults to empty map
 #       timeout: 60               # (optional) Timeout in seconds for the canary, defaults to null
@@ -50,7 +52,7 @@
 #           timeout: 60               # (optional) Timeout in seconds for the canary, defaults to null
 #           memory_mb: 128            # (optional) Memory in MB for the canary, defaults to null
 #           tracing: true | false     # (optional) Whether to enable xray tracing, defaults to null
-#        alarms:                  # (optional) Alarms configuration for the canary
+#         alarms:                 # (optional) Alarms configuration for the canary
 #           enabled: true | false # (optional) Whether to create alarms for the canary, defaults to true
 #           priority: 1           # (optional) Priority of the alarms, defaults to 4
 #           description: "This alarm is triggered when the canary fails." # (optional) Description of the alarm, defaults to a generic message
