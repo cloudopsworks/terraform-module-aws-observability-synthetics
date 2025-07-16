@@ -3,7 +3,7 @@ import sys
 import yaml
 import time
 import json
-import urllib3
+import urllib3 as urllib
 import certifi
 import io
 import uuid
@@ -16,8 +16,8 @@ from aws_synthetics.common import synthetics_logger as logger
 import aws_synthetics.common as common
 
 # Configure urllib3
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-http = urllib3.PoolManager(cert_reqs='CERT_REQUIRED', ca_certs=certifi.where())
+urllib.disable_warnings(urllib.exceptions.InsecureRequestWarning)
+http = urllib.PoolManager(cert_reqs='CERT_REQUIRED', ca_certs=certifi.where())
 
 def load_yaml_config(file_path: str) -> Dict[str, Any]:
     """
