@@ -54,7 +54,9 @@ resource "aws_synthetics_canary" "this" {
   failure_retention_period = try(each.value.canary.failure_retention_period, 1)
   s3_bucket                = local.s3_location_bucket_name
   s3_key                   = local.zip_files[each.key].bucket_key
-  s3_version               = aws_s3_object.script[each.key].version_id
+  s3_version = try(each.value.canary.requests_type, "URL") == "URL" ? aws_s3_object.script_url[each.key].version_id : (
+    try(each.value.canary.requests_script, "URL") != "SCRIPT" ? aws_s3_object.script_custom[each.key].version_id : null
+  )
   schedule {
     expression          = each.value.canary.schedule_expression
     duration_in_seconds = try(each.value.canary.schedule_duration, null)
