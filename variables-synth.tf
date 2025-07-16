@@ -12,8 +12,14 @@
 #   - name: "example-group"
 #     tags:                # (optional) Tags for the group
 #       Environment: "Production"
+#     default_run_config:         # (optional) Default run configuration for the group
+#       environment_variables: {} # (optional) Environment variables for the canary, defaults to empty map
+#       timeout: 60               # (optional) Timeout in seconds for the canary, defaults to null
+#       memory_mb: 128            # (optional) Memory in MB for the canary, defaults to null
+#       tracing: true | false     # (optional) Whether to enable xray tracing, defaults to null
 #     canaries:           # List of canaries in the group
 #       - name: "example-canary"
+#         description: "This is an example canary" # (optional) Description of the canary
 #         enabled: true | false # (optional) Whether the canary is enabled, defaults to true
 #         tags:            # (optional) Tags for the canary
 #           Environment: "Production"
@@ -41,16 +47,26 @@
 #               interval: 5 # (optional) Interval in seconds between retries, defaults to 5 seconds
 #         run_config:
 #           environment_variables: {} # (optional) Environment variables for the canary, defaults to empty map
-#           timeout_in_seconds: 60 # (optional) Timeout in seconds for the canary, defaults to null
-#           memory_mb: 128 # (optional) Memory in MB for the canary, defaults to null
-#           active_tracing: true | false # (optional) Whether to enable xray tracing, defaults to null
+#           timeout: 60               # (optional) Timeout in seconds for the canary, defaults to null
+#           memory_mb: 128            # (optional) Memory in MB for the canary, defaults to null
+#           tracing: true | false     # (optional) Whether to enable xray tracing, defaults to null
+#        alarms:                  # (optional) Alarms configuration for the canary
+#           enabled: true | false # (optional) Whether to create alarms for the canary, defaults to true
+#           priority: 1           # (optional) Priority of the alarms, defaults to 4
+#           description: "This alarm is triggered when the canary fails." # (optional) Description of the alarm, defaults to a generic message
+#           evaluation_periods: "1" # (optional) Number of evaluation periods for the alarm, defaults to 1
+#           period: "60"          # (optional) Period in seconds for the alarm, defaults to 60 seconds
+#           threshold: "1"       # (optional) Threshold for the alarm, defaults to 1
+#           notifications: # (optional) Notification settings for the alarm
+#             - sns_topic_name: "topic-name" # (optional) Name of the SNS topic for notifications
+#             - sns_topic_arn: "topic-name" # (optional) ARN of the SNS topic for notifications
 variable "groups" {
   description = "Settings for the synthetics configurations"
   type        = any
   default     = []
 }
 
-variable "sns_topic_name" {
+variable "default_sns_topic_name" {
   description = "Name of the SNS topic for notifications"
   type        = string
   default     = ""
@@ -61,6 +77,18 @@ variable "create_alarms" {
   description = "Flag to create CloudWatch alarms for the Synthetics canaries"
   type        = bool
   default     = true
+}
+
+variable "alarms_defaults" {
+  description = "Default settings for CloudWatch alarms"
+  type = object({
+    enabled            = optional(bool, true)
+    evaluation_periods = optional(string, "1")
+    period             = optional(string, "60")
+    threshold          = optional(string, "1")
+    description        = optional(string, "This alarm is triggered when the canary fails.")
+  })
+  default = {}
 }
 
 variable "vpc" {

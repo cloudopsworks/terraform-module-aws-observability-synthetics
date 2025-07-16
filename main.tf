@@ -68,11 +68,12 @@ resource "aws_synthetics_canary" "this" {
     environment_variables = merge({
       CONFIG_PATH = "/opt/python/${local.zip_files[each.key].file_name}"
       },
+      try(each.value.group.default_run_config.environment_variables, {}),
       try(each.value.canary.run_config.environment_variables, {})
     )
-    timeout_in_seconds = try(each.value.canary.run_config.timeout_in_seconds, null)
-    memory_in_mb       = try(each.value.canary.run_config.memory_mb, null)
-    active_tracing     = try(each.value.canary.run_config.tracing, null)
+    timeout_in_seconds = try(each.value.canary.run_config.timeout, each.value.group.default_run_config.timeout, null)
+    memory_in_mb       = try(each.value.canary.run_config.memory_mb, each.value.group.default_run_config.memory_mb, null)
+    active_tracing     = try(each.value.canary.run_config.tracing, each.value.group.default_run_config.tracing, null)
   }
   tags = merge(
     local.all_tags,
