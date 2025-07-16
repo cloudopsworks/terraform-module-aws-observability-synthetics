@@ -1,23 +1,18 @@
 import os
-import sys
 import yaml
 import time
 import json
-import urllib3 as urllib
+import urllib3
 import certifi
-import io
-import uuid
-import base64
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, Any, Tuple
 import traceback
 
 # AWS Synthetics imports
 from aws_synthetics.common import synthetics_logger as logger
-import aws_synthetics.common as common
 
 # Configure urllib3
-urllib.disable_warnings(urllib.exceptions.InsecureRequestWarning)
-http = urllib.PoolManager(cert_reqs='CERT_REQUIRED', ca_certs=certifi.where())
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+http = urllib3.PoolManager(cert_reqs='CERT_REQUIRED', ca_certs=certifi.where())
 
 def load_yaml_config(file_path: str) -> Dict[str, Any]:
     """
@@ -133,34 +128,9 @@ def get_canary_user_agent_string() -> str:
         return "AWS-Synthetics/1.0 (Python/urllib3)"
 
 
-def save_request_response_data(name: str, response_data: Dict[str, Any]) -> None:
-    """
-    Save request/response data to artifacts.
-    Replacement for common.take_screenshot().
-
-    Args:
-        name: Name of the artifact
-        response_data: Dictionary with response data to save
-    """
-    try:
-        # Create a JSON representation of the response data
-        json_data = json.dumps(response_data, indent=2)
-
-        # Try to use the common module's add_artifact method if available
-        try:
-            common.add_artifact(f"{name}.json", json_data)
-            logger.info(f"Saved response data to {name}.json")
-        except (AttributeError, Exception) as e:
-            # If add_artifact isn't available, log the data
-            logger.info(f"Response data for {name}: {json_data}")
-            logger.warning(f"Could not save artifact: {str(e)}")
-    except Exception as e:
-        logger.warning(f"Failed to save response data: {str(e)}")
-
-
 def make_http_request(url: str, method: str, headers: Dict[str, str], body: str, timeout: int) -> Tuple[int, str, Dict[str, Any], float]:
     """
-    Make an HTTP request using urllib.
+    Make an HTTP request using urllib3.
 
     Args:
         url: URL to request
@@ -178,7 +148,7 @@ def make_http_request(url: str, method: str, headers: Dict[str, str], body: str,
     logger.info(f"Making {method} request to {url}")
 
     # Create request object
-    request = urllib.request.Request(url, method=method)
+    request = urllib3.request.Request(url, method=method)
 
     # Add headers
     for key, value in headers.items():
@@ -193,14 +163,15 @@ def make_http_request(url: str, method: str, headers: Dict[str, str], body: str,
 
     try:
         # Make the request
-        with urllib.request.urlopen(request, data=data, timeout=timeout) as response:
+        with urllib3.request.urlopen(request, data=data, timeout=timeout) as response:
             status_code = response.status
             response_body = response.read().decode('utf-8')
-    except urllib.error.HTTPError as e:
+            response_headers = dict(response.getheaders())
+    except urllib3.error.HTTPError as e:
         # Handle HTTP errors (e.g., 404, 500)
         status_code = e.code
         response_body = e.read().decode('utf-8')
-    except urllib.error.URLError as e:
+    except urllib3.error.URLError as e:
         # Handle connection errors
         raise Exception(f"Connection error: {str(e)}")
     except Exception as e:
@@ -212,7 +183,7 @@ def make_http_request(url: str, method: str, headers: Dict[str, str], body: str,
 
     logger.info(f"Request completed with status {status_code} in {response_time:.2f} seconds")
 
-    return status_code, response_body, response_time
+    return status_code, response_body, response_headers, response_time
 
 def process_url_request(request: Dict[str, Any]) -> bool:
     """
@@ -287,9 +258,6 @@ def process_url_request(request: Dict[str, Any]) -> bool:
             if len(response_body) < 10000 and isinstance(response_body, str):
                 response_data['response_body'] = response_body[:10000]
 
-            # Save request/response data
-            save_request_response_data(f"request_{attempt+1}", response_data)
-
             # Process assertions
             all_assertions_passed = True
             for assertion in assertions:
@@ -308,24 +276,9 @@ def process_url_request(request: Dict[str, Any]) -> bool:
 
                 if not assertion_result:
                     logger.warning(f"Assertion failed: {assertion_type} with value {actual_value}")
-                    # Save assertion failure details
-                    save_request_response_data(f"assertion_failure_{assertion_type}", {
-                        'assertion': assertion,
-                        'actual_value': actual_value,
-                        'request_url': url,
-                        'timestamp': time.time()
-                    })
 
             if all_assertions_passed:
                 success = True
-                # Save success data
-                save_request_response_data("success", {
-                    'url': url,
-                    'method': method,
-                    'status_code': status_code,
-                    'response_time': response_time,
-                    'timestamp': time.time()
-                })
                 break
             else:
                 logger.warning(f"Attempt {attempt+1}/{retry_count} failed due to assertion failures")
@@ -333,15 +286,6 @@ def process_url_request(request: Dict[str, Any]) -> bool:
         except Exception as e:
             logger.error(f"Error processing request: {str(e)}")
             logger.error(traceback.format_exc())
-
-            # Save error details
-            save_request_response_data(f"error_attempt_{attempt+1}", {
-                'url': url,
-                'method': method,
-                'error': str(e),
-                'traceback': traceback.format_exc(),
-                'timestamp': time.time()
-            })
 
         # If this wasn't the last attempt, wait before retrying
         if attempt < retry_count - 1 and not success:
@@ -351,11 +295,9 @@ def process_url_request(request: Dict[str, Any]) -> bool:
     # Report metrics
     if success:
         logger.info(f"Request to {url} succeeded")
-        common.synthetics_success()
     else:
         error_message = f"Request to {url} failed after {retry_count} attempts"
         logger.error(error_message)
-        common.synthetics_failure(error_message)
 
     return success
 
@@ -413,19 +355,6 @@ def handler(event, context):
         logger.error(error_message)
         logger.error(traceback.format_exc())
         result['error'] = error_message
-
-        # Report failure to Synthetics
-        common.synthetics_failure(error_message)
-
-        # Save error details
-        try:
-            save_request_response_data("error", {
-                'error': str(e),
-                'traceback': traceback.format_exc(),
-                'timestamp': time.time()
-            })
-        except Exception as artifact_error:
-            logger.error(f"Failed to save error details: {str(artifact_error)}")
 
     finally:
         logger.info("AWS Synthetics canary completed")
