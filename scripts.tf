@@ -40,8 +40,8 @@ resource "null_resource" "this" {
     hash_sources = local.hash_sources
   }
   provisioner "local-exec" {
-    command = "pip install -r requirements.txt --target . --platform manylinux_2_17_x86_64 --python-version 3.11 --no-deps --upgrade"
-    working_dir = local.zip_files[each.key].file_path
+    command     = "pip install -r requirements.txt --target . --platform manylinux_2_17_x86_64 --python-version 3.11 --no-deps --upgrade"
+    working_dir = "${path.module}/sources/"
   }
 }
 
