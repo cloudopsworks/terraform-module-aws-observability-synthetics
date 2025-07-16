@@ -41,7 +41,7 @@ resource "null_resource" "this" {
   }
   provisioner "local-exec" {
     command     = "python3 -m pip install -r requirements.txt --target ./python --platform manylinux_2_17_x86_64 --python-version 3.11 --no-deps --upgrade"
-    working_dir = "${path.module}/sources/python"
+    working_dir = "${path.module}/sources"
   }
 }
 
