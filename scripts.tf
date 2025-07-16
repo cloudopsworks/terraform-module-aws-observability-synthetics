@@ -90,9 +90,9 @@ resource "aws_s3_object" "script_url" {
 resource "local_file" "script_custom_node" {
   for_each = {
     for key, synth in local.synthetics : key => synth
-    if upper(try(synth.canary.requests_type, "URL")) == "SCRIPT" && strcontains(try(var.request_scripts[synth.canary.request_script_ref].runtime_version, synth.canary.runtime_version, local.default_runtime_version), "nodejs")
+    if upper(try(synth.canary.requests_type, "URL")) == "SCRIPT" && strcontains(try(local.request_scripts_map[synth.canary.request_script_ref].runtime_version, synth.canary.runtime_version, local.default_runtime_version), "nodejs")
   }
-  content         = try(var.request_scripts[each.value.canary.request_script_ref].content, each.value.canary.request_script)
+  content         = try(local.request_scripts_map[each.value.canary.request_script_ref].content, each.value.canary.request_script)
   filename        = "${path.module}/sources/custom/${each.key}/nodejs/node_modules/custom_handler.js"
   file_permission = "0644"
 }
@@ -100,9 +100,9 @@ resource "local_file" "script_custom_node" {
 resource "local_file" "script_custom_python" {
   for_each = {
     for key, synth in local.synthetics : key => synth
-    if upper(try(synth.canary.requests_type, "URL")) == "SCRIPT" && strcontains(try(var.request_scripts[synth.canary.request_script_ref].runtime_version, synth.canary.runtime_version, local.default_runtime_version), "python")
+    if upper(try(synth.canary.requests_type, "URL")) == "SCRIPT" && strcontains(try(local.request_scripts_map[synth.canary.request_script_ref].runtime_version, synth.canary.runtime_version, local.default_runtime_version), "python")
   }
-  content         = try(var.request_scripts[each.value.canary.request_script_ref].content, each.value.canary.request_script)
+  content         = try(local.request_scripts_map[each.value.canary.request_script_ref].content, each.value.canary.request_script)
   filename        = "${path.module}/sources/custom/${each.key}/python/custom_handler.py"
   file_permission = "0644"
 }
@@ -110,7 +110,7 @@ resource "local_file" "script_custom_python" {
 resource "archive_file" "script_custom_node" {
   for_each = {
     for key, synth in local.synthetics : key => synth
-    if upper(try(synth.canary.requests_type, "URL")) == "SCRIPT" && strcontains(try(var.request_scripts[synth.canary.request_script_ref].runtime_version, synth.canary.runtime_version, local.default_runtime_version), "nodejs")
+    if upper(try(synth.canary.requests_type, "URL")) == "SCRIPT" && strcontains(try(local.request_scripts_map[synth.canary.request_script_ref].runtime_version, synth.canary.runtime_version, local.default_runtime_version), "nodejs")
   }
   output_path = local.zip_files[each.key].zip_file_path
   type        = "zip"
@@ -133,7 +133,7 @@ resource "archive_file" "script_custom_node" {
 resource "archive_file" "script_custom_python" {
   for_each = {
     for key, synth in local.synthetics : key => synth
-    if upper(try(synth.canary.requests_type, "URL")) == "SCRIPT" && strcontains(try(var.request_scripts[synth.canary.request_script_ref].runtime_version, synth.canary.runtime_version, local.default_runtime_version), "python")
+    if upper(try(synth.canary.requests_type, "URL")) == "SCRIPT" && strcontains(try(local.request_scripts_map[synth.canary.request_script_ref].runtime_version, synth.canary.runtime_version, local.default_runtime_version), "python")
   }
   output_path = local.zip_files[each.key].zip_file_path
   type        = "zip"
