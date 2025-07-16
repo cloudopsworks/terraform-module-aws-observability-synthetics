@@ -1,0 +1,31 @@
+requests:
+  - url: "https://example.com"
+    timeout: 30
+    method: GET
+    headers:
+      User-Agent: "AWS Synthetics Canary"  # Will be replaced with actual canary user agent string
+    assertions:
+      - type: STATUS_CODE
+        operator: EQUALS
+        value: 200
+      - type: RESPONSE_TIME
+        operator: LESS_THAN
+        value: 5
+    retry:
+      count: 3
+      interval: 5
+
+  - url: "https://api.example.com/data"
+    timeout: 30
+    method: POST
+    headers:
+      Content-Type: "application/json"
+      Authorization: "Bearer ${ENV_TOKEN}"
+    body: '{"query": "test"}'  
+    assertions:
+      - type: STATUS_CODE
+        operator: EQUALS
+        value: 201
+    retry:
+      count: 2
+      interval: 10
