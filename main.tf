@@ -49,7 +49,7 @@ resource "aws_synthetics_canary" "this" {
   start_canary         = try(each.value.canary.enabled, true)
   runtime_version      = try(each.value.canary.runtime_version, local.default_runtime_version)
   handler = try(each.value.canary.requests_type, "URL") == "URL" ? "canary_handler.handler" : (
-    try(each.value.canary.requests_script, "URL") == "SCRIPT" ? try(each.value.canary.handler, "custom_handler.handler") :
+    try(each.value.canary.requests_type, "URL") == "SCRIPT" ? try(each.value.canary.handler, "custom_handler.handler") :
     try(each.value.canary.handler, "")
 
   )
@@ -59,7 +59,7 @@ resource "aws_synthetics_canary" "this" {
   s3_bucket                = local.s3_location_bucket_name
   s3_key                   = local.zip_files[each.key].bucket_key
   s3_version = try(each.value.canary.requests_type, "URL") == "URL" ? aws_s3_object.script_url[each.key].version_id : (
-    try(each.value.canary.requests_script, "URL") == "SCRIPT" ? aws_s3_object.script_custom[each.key].version_id : null
+    try(each.value.canary.requests_type, "URL") == "SCRIPT" ? aws_s3_object.script_custom[each.key].version_id : null
   )
   schedule {
     expression          = each.value.canary.schedule_expression
