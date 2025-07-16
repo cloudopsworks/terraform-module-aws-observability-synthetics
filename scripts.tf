@@ -20,7 +20,7 @@ locals {
     for key, content in local.canary_content : key => upper(sha256(content))
   }
   zip_files = {
-    for key, content in local.canary_content : key => {
+    for key, content in local.synthetics : key => {
       file_path     = "${path.module}/sources/standard/python/"
       file_name     = "${key}_config.yaml"
       bucket_key    = "upload/scripts/${key}.zip"
