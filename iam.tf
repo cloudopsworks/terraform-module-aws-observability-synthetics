@@ -44,7 +44,8 @@ data "aws_iam_policy_document" "synthetic_policy" {
     ]
     resources = [
       var.create_artifacts_bucket ? local.created_artifacts_bucket : data.aws_s3_bucket.artifacts[0].arn,
-      "${var.create_artifacts_bucket ? local.created_artifacts_bucket : data.aws_s3_bucket.artifacts[0].arn}/canary/${data.aws_region.current.id}/*"
+      "${var.create_artifacts_bucket ? local.created_artifacts_bucket : data.aws_s3_bucket.artifacts[0].arn}/canary/${data.aws_region.current.id}/*",
+      "${var.create_artifacts_bucket ? local.created_artifacts_bucket : data.aws_s3_bucket.artifacts[0].arn}/upload/scripts/*"
     ]
   }
   statement {
