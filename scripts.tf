@@ -133,7 +133,7 @@ resource "archive_file" "script_custom_node" {
 resource "archive_file" "script_custom_python" {
   for_each = {
     for key, synth in local.synthetics : key => synth
-    if upper(try(synth.canary.requests_type, "URL")) == "SCRIPT" && strcontains(try(synth.canary.runtime_version, local.default_runtime_version), "nodejs")
+    if upper(try(synth.canary.requests_type, "URL")) == "SCRIPT" && strcontains(try(synth.canary.runtime_version, local.default_runtime_version), "python")
   }
   output_path = local.zip_files[each.key].zip_file_path
   type        = "zip"
