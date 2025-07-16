@@ -32,7 +32,8 @@
 #         success_retention_period: 7 # (optional) Retention period in Days for successful runs, defaults to 1 Day
 #         failure_retention_period: 7 # (optional) Retention period in Days for failed runs, defaults to 1 Day
 #         requests_type: "URL" | "SCRIPT" | "API" # (required) Type of request, defaults to URL
-#         requests_script: |                      # (optional) Script for the canary, required if type is SCRIPT
+#         request_script: |                      # (optional) Script for the canary, required if type is SCRIPT
+#         request_script_ref: "script-name" # (optional) Reference to the script for the canary, required if type is SCRIPT and request_script is not provided
 #         requests:
 #           - url: "https://example.com"    # (optional) URL for the canary, required if type is URL
 #             script: "path/to/script.js"   # (optional) Path to the script for the canary, required if type is SCRIP
@@ -73,20 +74,20 @@ variable "groups" {
 }
 
 variable "default_sns_topic_name" {
-  description = "Name of the SNS topic for notifications"
+  description = "(optional) Name of the SNS topic for notifications, defaults to empty string"
   type        = string
   default     = ""
   nullable    = false
 }
 
 variable "create_alarms" {
-  description = "Flag to create CloudWatch alarms for the Synthetics canaries"
+  description = "(optional) Flag to create CloudWatch alarms for the Synthetics canaries, defaults to true"
   type        = bool
   default     = true
 }
 
 variable "alarms_defaults" {
-  description = "Default settings for CloudWatch alarms"
+  description = "(optional) Default settings for CloudWatch alarms"
   type = object({
     enabled            = optional(bool, true)
     evaluation_periods = optional(string, "1")
@@ -99,8 +100,18 @@ variable "alarms_defaults" {
   default = {}
 }
 
+variable "request_scripts" {
+  description = "(optional) Array of request scripts for the Synthetics canaries"
+  type = list(object({
+    name            = string
+    content         = string
+    runtime_version = string
+  }))
+  default = []
+}
+
 variable "vpc" {
-  description = "VPC configuration for the Synthetics canaries"
+  description = "(required) VPC configuration for the Synthetics canaries"
   type = object({
     enabled            = optional(bool, true)
     vpc_id             = optional(string, "")
@@ -110,14 +121,14 @@ variable "vpc" {
 }
 
 variable "artifacts_bucket" {
-  description = "S3 bucket for storing Synthetics canary artifacts"
+  description = "(optional) S3 bucket for storing Synthetics canary artifacts"
   type        = string
   default     = ""
   nullable    = false
 }
 
 variable "create_artifacts_bucket" {
-  description = "Flag to create the S3 bucket for Synthetics canary artifacts"
+  description = "(optional) Flag to create the S3 bucket for Synthetics canary artifacts, required if artifacts_bucket is not provided"
   type        = bool
   default     = false
 }

@@ -1,4 +1,4 @@
-name: Terraform AWS Observability Synthetics Module
+name: "AWS Observability Synthetics Terraform Module"
 #logo: logo/logo.jpg
 
 license: "APACHE2"
@@ -6,7 +6,7 @@ license: "APACHE2"
 copyrights:
   - name: "Cloud Ops Works LLC"
     url: "https://cloudops.works"
-    year: "2024"
+    year: "2024-2025"
 
 github_repo: cloudopsworks/terraform-module-aws-observability-synthetics
 
@@ -82,7 +82,7 @@ usage: |-
           success_retention_period: 7 # (optional) Retention period in Days for successful runs, defaults to 1 Day
           failure_retention_period: 7 # (optional) Retention period in Days for failed runs, defaults to 1 Day
           requests_type: "URL" | "SCRIPT" | "API" # (required) Type of request, defaults to URL
-          requests_script: |                      # (optional) Script for the canary, required if type is SCRIPT
+          request_script: |                      # (optional) Script for the canary, required if type is SCRIPT
           requests:
             - url: "https://example.com"    # (optional) URL for the canary, required if type is URL
               script: "path/to/script.js"   # (optional) Path to the script for the canary, required if type is SCRIP
@@ -194,10 +194,63 @@ examples: |-
 # How to get started quickly
 quickstart: |-
   1. Prepare your AWS environment:
-     - Create VPC and subnets for canary execution
-     - Set up IAM permissions for Synthetics execution
-     - Create S3 bucket for artifacts (optional, can be created by module)
-     - Create SNS topics for notifications
+     - Ensure AWS credentials are configured
+     - Create or identify target VPC and subnets
+     - Prepare SNS topics for notifications (optional)
+
+  2. Create Terragrunt configuration (terragrunt.hcl):
+     ```hcl
+     include "root" {
+       path = find_in_parent_folders()
+     }
+
+     terraform {
+       source = "cloudopsworks/terraform-module-aws-observability-synthetics//."
+     }
+
+     inputs = {
+       create_artifacts_bucket = true
+       artifacts_bucket = "my-synthetics-artifacts"
+       default_sns_topic_name = "monitoring-alerts"
+
+       vpc = {
+         enabled = true
+         vpc_id = dependency.vpc.outputs.vpc_id
+         subnet_ids = dependency.vpc.outputs.private_subnets
+       }
+     }
+     ```
+
+  3. Define your monitoring groups in a YAML file:
+     ```yaml
+     groups:
+       - name: "api-monitoring"
+         tags:
+           Environment: "Production"
+         canaries:
+           - name: "api-health"
+             runtime_version: "syn-python-selenium-6.0"
+             requests_type: "API"
+             requests:
+               - url: "https://api.example.com/health"
+                 method: "GET"
+                 assertions:
+                   - type: "STATUS_CODE"
+                     operator: "EQUALS"
+                     value: 200
+     ```
+
+  4. Apply configuration:
+     ```bash
+     terragrunt init
+     terragrunt plan
+     terragrunt apply
+     ```
+
+  5. Verify deployment:
+     - Check AWS Synthetics console
+     - Monitor CloudWatch metrics
+     - Test notifications
 
   2. Create Terraform/Terragrunt configuration:
      ```hcl
