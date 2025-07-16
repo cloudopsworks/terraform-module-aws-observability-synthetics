@@ -55,8 +55,11 @@
 #           priority: 1           # (optional) Priority of the alarms, defaults to 4
 #           description: "This alarm is triggered when the canary fails." # (optional) Description of the alarm, defaults to a generic message
 #           evaluation_periods: "1" # (optional) Number of evaluation periods for the alarm, defaults to 1
-#           period: "60"          # (optional) Period in seconds for the alarm, defaults to 60 seconds
-#           threshold: "1"       # (optional) Threshold for the alarm, defaults to 1
+#           period: "900"          # (optional) Period in seconds for the alarm, defaults to 900 seconds (15minutes)
+#           threshold: "90"       # (optional) Threshold for the alarm, defaults to 90% SuccessPercent
+#           metric: "SuccessPercent" | "Failure" | "Duration" # (optional) Metric for the alarm, defaults to "SuccessPercent"
+#           condition: "GreaterThanOrEqualToThreshold" | "GreaterThanThreshold" | "LessThanThreshold" | "LessThanThreshold" # (optional) Condition for the alarm, defaults to "GreaterThanOrEqualToThreshold"
+#           statistic: "Average" | "Sum" | "Minimum" | "Maximum" # (optional) Statistic for the alarm, defaults to "Average"
 #           notifications: # (optional) Notification settings for the alarm
 #             - sns_topic_name: "topic-name" # (optional) Name of the SNS topic for notifications
 #             - sns_topic_arn: "topic-name" # (optional) ARN of the SNS topic for notifications

@@ -26,6 +26,11 @@ locals {
       if try(synthetic.canary.alarms.enabled, true) && var.create_alarms && try(notification.sns_topic_arn, "") != ""
     }
   ]...)
+  default_statistic = {
+    "SuccessPercent" = "Average"
+    "Failure"        = "Sum"
+    "Duration"       = "Average"
+  }
 }
 
 data "aws_sns_topic" "default_topic" {
@@ -45,12 +50,12 @@ resource "aws_cloudwatch_metric_alarm" "canary_failed" {
   }
   alarm_name          = "[P${try(each.value.canary.alarms.priority, 4)}] Synthetic Failed - ${each.value.canary_final_name}"
   alarm_description   = try(format("This alarm is triggered when the canary fails. %s", each.value.canary.description), var.alarms_defaults.description)
-  comparison_operator = "GreaterThanOrEqualToThreshold"
+  comparison_operator = try(each.value.canary.alarms.condition, "LessThanThreshold")
   evaluation_periods  = try(each.value.canary.alarms.evaluation_periods, var.alarms_defaults.evaluation_periods)
-  metric_name         = "Failed"
+  metric_name         = try(each.value.canary.alarms.metric, "SuccessPercent")
   namespace           = "CloudWatchSynthetics"
   period              = try(each.value.canary.alarms.period, var.alarms_defaults.period)
-  statistic           = "Sum"
+  statistic           = try(each.value.canary.alarms.statistic, local.default_statistic[try(each.value.canary.alarms.metric, "SuccessPercent")])
   threshold           = try(each.value.canary.alarms.threshold, var.alarms_defaults.threshold)
   dimensions = {
     CanaryName = each.value.canary_final_name
