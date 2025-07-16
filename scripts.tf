@@ -14,6 +14,7 @@ locals {
     for key, synthetic in local.synthetics : key => yamlencode({
       requests = synthetic.canary.requests
     })
+    if try(synthetic.canary.requests_type, "URL") == "URL"
   }
   hash_content = {
     for key, content in local.canary_content : key => upper(sha256(content))
