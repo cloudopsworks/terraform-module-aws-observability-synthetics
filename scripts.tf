@@ -14,7 +14,7 @@ locals {
     for key, synthetic in local.synthetics : key => yamlencode({
       requests = synthetic.canary.requests
     })
-    if try(synthetic.canary.requests_type, "URL") == "URL"
+    if upper(try(synthetic.canary.requests_type, "URL")) == "URL"
   }
   hash_content = {
     for key, content in local.canary_content : key => upper(sha256(content))
@@ -32,7 +32,7 @@ locals {
 resource "local_file" "script_config" {
   for_each = {
     for key, synth in local.synthetics : key => synth
-    if try(synth.canary.requests_type, "URL") == "URL"
+    if upper(try(synth.canary.requests_type, "URL")) == "URL"
   }
   content         = local.canary_content[each.key]
   filename        = format("%s%s", local.zip_files[each.key].file_path, local.zip_files[each.key].file_name)
@@ -87,29 +87,6 @@ resource "aws_s3_object" "script_url" {
   }
 }
 
-resource "archive_file" "script_custom" {
-  for_each = {
-    for key, synth in local.synthetics : key => synth
-    if upper(try(synth.canary.requests_type, "URL")) == "SCRIPT"
-  }
-  output_path = local.zip_files[each.key].zip_file_path
-  type        = "zip"
-  source_dir  = "${path.module}/sources/custom/"
-  excludes = [
-    "**/example*.yaml",
-    "**/requirements.txt",
-  ]
-  depends_on = [
-    local_file.script_config
-  ]
-  lifecycle {
-    replace_triggered_by = [
-      null_resource.this,
-      local_file.script_config[each.key].id,
-    ]
-  }
-}
-
 resource "local_file" "script_custom_node" {
   for_each = {
     for key, synth in local.synthetics : key => synth
@@ -130,6 +107,52 @@ resource "local_file" "script_custom_python" {
   file_permission = "0644"
 }
 
+resource "archive_file" "script_custom_node" {
+  for_each = {
+    for key, synth in local.synthetics : key => synth
+    if upper(try(synth.canary.requests_type, "URL")) == "SCRIPT"
+  }
+  output_path = local.zip_files[each.key].zip_file_path
+  type        = "zip"
+  source_dir  = "${path.module}/sources/custom/"
+  excludes = [
+    "**/example*.yaml",
+    "**/requirements.txt",
+  ]
+  depends_on = [
+    local_file.script_custom_node,
+  ]
+  lifecycle {
+    replace_triggered_by = [
+      null_resource.this,
+      local_file.script_custom_node[each.key].id,
+    ]
+  }
+}
+
+resource "archive_file" "script_custom_python" {
+  for_each = {
+    for key, synth in local.synthetics : key => synth
+    if upper(try(synth.canary.requests_type, "URL")) == "SCRIPT"
+  }
+  output_path = local.zip_files[each.key].zip_file_path
+  type        = "zip"
+  source_dir  = "${path.module}/sources/custom/"
+  excludes = [
+    "**/example*.yaml",
+    "**/requirements.txt",
+  ]
+  depends_on = [
+    local_file.script_custom_python,
+  ]
+  lifecycle {
+    replace_triggered_by = [
+      null_resource.this,
+      local_file.script_custom_python[each.key].id,
+    ]
+  }
+}
+
 resource "aws_s3_object" "script_custom" {
   for_each = {
     for key, synth in local.synthetics : key => synth
@@ -137,7 +160,7 @@ resource "aws_s3_object" "script_custom" {
   }
   bucket      = local.s3_location_bucket_name
   key         = local.zip_files[each.key].bucket_key
-  source      = archive_file.script_custom[each.key].output_path
+  source      = try(archive_file.script_custom_node[each.key].output_path, archive_file.script_custom_python[each.key].output_path)
   source_hash = sha256(format("%s-%s", local.hash_content[each.key], local.hash_sources))
   tags = {
     synthetic_group_key  = each.value.group.name
