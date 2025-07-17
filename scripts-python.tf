@@ -95,7 +95,8 @@ resource "null_resource" "archive_url_python" {
     script_config = local_file.script_config_python[each.key].content_sha256
   }
   provisioner "local-exec" {
-    command = "zip -r ${local.zip_files_python[each.key].zip_file_path} ${path.module}/sources/standard/${each.key}/"
+    command     = "zip -r ${local.zip_files_python[each.key].zip_file_path} ."
+    working_dir = "${path.module}/sources/standard/${each.key}/"
   }
   depends_on = [
     null_resource.this_python,

@@ -76,7 +76,8 @@ resource "null_resource" "archive_url_nodejs" {
     script_config = local_file.script_config_nodejs[each.key].content_sha256
   }
   provisioner "local-exec" {
-    command = "zip -r ${local.zip_files_nodejs[each.key].zip_file_path} ${path.module}/sources/standard/${each.key}/"
+    command     = "zip -r ${local.zip_files_nodejs[each.key].zip_file_path} ."
+    working_dir = "${path.module}/sources/standard/${each.key}/"
   }
   depends_on = [
     null_resource.this_nodejs,
