@@ -24,16 +24,12 @@ locals {
     })
     if synthetic.is_url
   }
-  hash_requests_content = upper(
-    sha256(
-      join("", [
-        for key, content in local.canary_requests_content : sha256(content)
-      ])
-    )
-  )
+  hash_requests_content = {
+    for key, content in local.canary_requests_content : key => upper(sha256(content))
+  }
   zip_files_python = {
     for key, content in local.synthetics : key => {
-      file_path     = "${path.module}/sources/standard/python/"
+      file_path     = "${path.module}/sources/standard/${key}/python/"
       file_name     = "${key}_config.yaml"
       bucket_key    = "upload/scripts/${key}.zip"
       zip_file_path = "${path.module}/scripts/${key}.zip"
@@ -62,12 +58,17 @@ resource "local_file" "script_config_python" {
 }
 
 resource "null_resource" "this_python" {
+  for_each = local.python_synthetics_url
   triggers = {
     hash_sources          = local.hash_sources
-    hash_requests_content = local.hash_requests_content
+    hash_requests_content = local.hash_requests_content[each.key]
   }
   provisioner "local-exec" {
-    command     = "python3 -m pip install -r requirements.txt --target ./python --platform manylinux_2_17_x86_64 --python-version 3.11 --no-deps --upgrade"
+    command     = "python3 -m pip install -r requirements.txt --target ./${each.key}/python --platform manylinux_2_17_x86_64 --python-version 3.11 --no-deps --upgrade"
+    working_dir = "${path.module}/sources/standard/"
+  }
+  provisioner "local-exec" {
+    command     = "cp -r ./python/ ./${each.key}/python/"
     working_dir = "${path.module}/sources/standard"
   }
 }
@@ -76,7 +77,7 @@ resource "archive_file" "script_url_python" {
   for_each    = local.python_synthetics_url
   output_path = local.zip_files_python[each.key].zip_file_path
   type        = "zip"
-  source_dir  = "${path.module}/sources/standard"
+  source_dir  = "${path.module}/sources/standard/${each.key}"
   excludes = [
     "example*.yaml",
     "requirements.txt",
@@ -87,7 +88,7 @@ resource "archive_file" "script_url_python" {
   ]
   lifecycle {
     replace_triggered_by = [
-      null_resource.this_python,
+      null_resource.this_python[each.key],
       local_file.script_config_python[each.key].id,
     ]
   }
