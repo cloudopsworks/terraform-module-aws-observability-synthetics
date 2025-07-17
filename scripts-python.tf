@@ -90,16 +90,16 @@ resource "null_resource" "this_python" {
 }
 
 resource "null_resource" "archive_url_python" {
-  for_each = local.nodejs_synthetics_url
+  for_each = local.python_synthetics_url
   triggers = {
-    script_config = local_file.script_config_nodejs[each.key].content_sha256
+    script_config = local_file.script_config_python[each.key].content_sha256
   }
   provisioner "local-exec" {
-    command = "zip -r ${local.zip_files_nodejs[each.key].zip_file_path} ${path.module}/sources/standard/${each.key}/"
+    command = "zip -r ${local.zip_files_python[each.key].zip_file_path} ${path.module}/sources/standard/${each.key}/"
   }
   depends_on = [
-    null_resource.this_nodejs,
-    local_file.script_config_nodejs
+    null_resource.this_python,
+    local_file.script_config_python
   ]
 }
 
