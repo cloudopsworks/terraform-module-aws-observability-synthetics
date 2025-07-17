@@ -56,8 +56,13 @@ resource "local_file" "script_config_python" {
   filename        = format("%s%s", local.zip_files_python[each.key].file_path, local.zip_files_python[each.key].file_name)
   file_permission = "0644"
   depends_on = [
-    null_resource.stage_python
+    null_resource.this_python
   ]
+  lifecycle {
+    replace_triggered_by = [
+      null_resource.this_python[each.key],
+    ]
+  }
 }
 
 resource "null_resource" "stage_python" {
@@ -80,7 +85,7 @@ resource "null_resource" "this_python" {
     hash_requests_content = local.hash_requests_content[each.key]
   }
   provisioner "local-exec" {
-    command     = "cp -r ./stage/python ./${each.key}/python"
+    command     = "cp -r ./stage/python ./${each.key}/"
     working_dir = "${path.module}/sources/standard"
   }
   depends_on = [

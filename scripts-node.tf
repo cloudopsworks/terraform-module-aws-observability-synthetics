@@ -37,8 +37,13 @@ resource "local_file" "script_config_nodejs" {
   filename        = format("%s%s", local.zip_files_nodejs[each.key].file_path, local.zip_files_nodejs[each.key].file_name)
   file_permission = "0644"
   depends_on = [
-    null_resource.stage_nodejs
+    null_resource.this_nodejs
   ]
+  lifecycle {
+    replace_triggered_by = [
+      null_resource.this_nodejs[each.key],
+    ]
+  }
 }
 
 resource "null_resource" "stage_nodejs" {
@@ -61,7 +66,7 @@ resource "null_resource" "this_nodejs" {
     hash_requests_content = local.hash_requests_content[each.key]
   }
   provisioner "local-exec" {
-    command     = "cp -r ./stage/nodejs ./${each.key}/nodejs"
+    command     = "cp -r ./stage/nodejs ./${each.key}/"
     working_dir = "${path.module}/sources/standard"
   }
   depends_on = [
