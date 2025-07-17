@@ -55,7 +55,7 @@ resource "null_resource" "stage_nodejs" {
     working_dir = "${path.module}/sources/standard"
   }
   provisioner "local-exec" {
-    command     = "cp -r ./nodejs/ ./stage/nodejs/node_modules/"
+    command     = "cp -r ./nodejs/ ./stage/nodejs/"
     working_dir = "${path.module}/sources/standard"
   }
 }
