@@ -60,7 +60,7 @@ resource "local_file" "script_config_python" {
   ]
   lifecycle {
     replace_triggered_by = [
-      null_resource.stage_python[each.key],
+      null_resource.stage_python
     ]
   }
 }
