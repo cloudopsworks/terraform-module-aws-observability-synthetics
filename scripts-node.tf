@@ -70,7 +70,7 @@ resource "null_resource" "archive_url_nodejs" {
     working_dir = "${path.module}/sources/standard"
   }
   provisioner "local-exec" {
-    command     = "zip -r /tmp/${each.key}.zip ."
+    command     = "zip -q -r /tmp/${each.key}.zip ."
     working_dir = "${path.module}/sources/standard/${each.key}/"
   }
   provisioner "local-exec" {
