@@ -38,9 +38,11 @@ data "aws_iam_policy_document" "synthetic_policy" {
     effect = "Allow"
     actions = [
       "s3:GetObject",
+      "s3:GetObjectVersion",
       "s3:PutObject",
       "s3:ListBucket",
       "s3:GetBucketLocation",
+      "s3:ListAllMyBuckets",
     ]
     resources = [
       var.create_artifacts_bucket ? local.created_artifacts_bucket : data.aws_s3_bucket.artifacts[0].arn,
@@ -125,5 +127,6 @@ resource "aws_iam_role" "this" {
 resource "aws_iam_role_policy" "synthetic_policy" {
   for_each = local.synth_groups
   role     = aws_iam_role.this[each.key].id
+  name     = format("synth-%s-%s-policy", each.value.name, local.system_name_short)
   policy   = data.aws_iam_policy_document.synthetic_policy[each.key].json
 }
