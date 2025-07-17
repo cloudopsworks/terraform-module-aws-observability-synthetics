@@ -43,7 +43,7 @@ resource "null_resource" "this_nodejs" {
     hash_sources = local.hash_sources
   }
   provisioner "local-exec" {
-    command     = "npm install --prefix ./nodejs --no-save --no-package-lock --omit=dev --target_arch=x64 --target_platform=linux js-yaml"
+    command     = "npm install --prefix ./nodejs/node_modules/ --no-save --no-package-lock --omit=dev --target_arch=x64 --target_platform=linux js-yaml"
     working_dir = "${path.module}/sources/standard"
   }
 }
