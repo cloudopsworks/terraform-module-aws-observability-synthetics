@@ -74,7 +74,7 @@ resource "archive_file" "script_url_nodejs" {
   for_each    = local.nodejs_synthetics_url
   output_path = local.zip_files_nodejs[each.key].zip_file_path
   type        = "zip"
-  source_dir  = "${path.module}/sources/standard/stage"
+  source_dir  = "${path.module}/sources/standard/${each.key}"
   excludes = [
     "**/example*.yaml",
     "**/requirements.txt",
@@ -119,12 +119,11 @@ resource "archive_file" "script_custom_node" {
     "**/requirements.txt",
   ]
   depends_on = [
-    null_resource.this_nodejs,
     local_file.script_custom_node,
   ]
   lifecycle {
     replace_triggered_by = [
-      local_file.script_custom_node[each.key].id,
+      local_file.script_custom_node[each.key].content_sha256,
     ]
   }
 }

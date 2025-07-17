@@ -90,13 +90,14 @@ resource "archive_file" "script_url_python" {
   for_each    = local.python_synthetics_url
   output_path = local.zip_files_python[each.key].zip_file_path
   type        = "zip"
-  source_dir  = "${path.module}/sources/standard/stage"
+  source_dir  = "${path.module}/sources/standard/${each.key}"
   excludes = [
     "example*.yaml",
     "requirements.txt",
     "nodejs/**/*",
   ]
   depends_on = [
+    null_resource.stage_python,
     null_resource.this_python,
     local_file.script_config_python
   ]
@@ -140,8 +141,7 @@ resource "archive_file" "script_custom_python" {
   ]
   lifecycle {
     replace_triggered_by = [
-      null_resource.this_python,
-      local_file.script_custom_python[each.key].id,
+      local_file.script_custom_python[each.key].content_sha256,
     ]
   }
 }
