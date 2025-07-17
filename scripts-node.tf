@@ -37,11 +37,11 @@ resource "local_file" "script_config_nodejs" {
   filename        = format("%s%s", local.zip_files_nodejs[each.key].file_path, local.zip_files_nodejs[each.key].file_name)
   file_permission = "0644"
   depends_on = [
-    null_resource.this_nodejs
+    null_resource.stage_nodejs
   ]
   lifecycle {
     replace_triggered_by = [
-      null_resource.this_nodejs[each.key],
+      null_resource.stage_nodejs
     ]
   }
 }

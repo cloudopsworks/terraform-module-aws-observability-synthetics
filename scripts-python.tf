@@ -56,11 +56,11 @@ resource "local_file" "script_config_python" {
   filename        = format("%s%s", local.zip_files_python[each.key].file_path, local.zip_files_python[each.key].file_name)
   file_permission = "0644"
   depends_on = [
-    null_resource.this_python
+    null_resource.stage_python
   ]
   lifecycle {
     replace_triggered_by = [
-      null_resource.this_python[each.key],
+      null_resource.stage_python[each.key],
     ]
   }
 }
