@@ -57,39 +57,52 @@ resource "local_file" "script_config_python" {
   file_permission = "0644"
 }
 
-resource "null_resource" "this_python" {
-  for_each = local.python_synthetics_url
+resource "null_resource" "stage_python" {
   triggers = {
-    hash_sources          = local.hash_sources
-    hash_requests_content = local.hash_requests_content[each.key]
+    always = timestamp()
   }
   provisioner "local-exec" {
-    command     = "python3 -m pip install -r requirements.txt --target ./${each.key}/python --platform manylinux_2_17_x86_64 --python-version 3.11 --no-deps --upgrade"
+    command     = "python3 -m pip install -r requirements.txt --target ./stage/python --platform manylinux_2_17_x86_64 --python-version 3.11 --no-deps --upgrade"
     working_dir = "${path.module}/sources/standard/"
   }
   provisioner "local-exec" {
-    command     = "cp -r ./python/ ./${each.key}/python/"
+    command     = "cp -r ./python/ ./stage/python/"
     working_dir = "${path.module}/sources/standard"
   }
+}
+
+resource "null_resource" "this_python" {
+  for_each = local.python_synthetics_url
+  triggers = {
+    hash_requests_content = local.hash_requests_content[each.key]
+  }
+  provisioner "local-exec" {
+    command     = "cp -r ./stage/python ./${each.key}/python"
+    working_dir = "${path.module}/sources/standard"
+  }
+  depends_on = [
+    null_resource.stage_python,
+    local_file.script_config_python
+  ]
 }
 
 resource "archive_file" "script_url_python" {
   for_each    = local.python_synthetics_url
   output_path = local.zip_files_python[each.key].zip_file_path
   type        = "zip"
-  source_dir  = "${path.module}/sources/standard/${each.key}"
+  source_dir  = "${path.module}/sources/standard/stage"
   excludes = [
     "example*.yaml",
     "requirements.txt",
     "nodejs/**/*",
   ]
   depends_on = [
+    null_resource.this_python,
     local_file.script_config_python
   ]
   lifecycle {
     replace_triggered_by = [
-      null_resource.this_python[each.key],
-      local_file.script_config_python[each.key].id,
+      local_file.script_config_python[each.key].content_sha256,
     ]
   }
 }

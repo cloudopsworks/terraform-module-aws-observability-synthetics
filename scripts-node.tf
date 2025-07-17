@@ -36,39 +36,56 @@ resource "local_file" "script_config_nodejs" {
   content         = local.canary_requests_content[each.key]
   filename        = format("%s%s", local.zip_files_nodejs[each.key].file_path, local.zip_files_nodejs[each.key].file_name)
   file_permission = "0644"
+  depends_on = [
+    null_resource.stage_nodejs
+  ]
+}
+
+resource "null_resource" "stage_nodejs" {
+  triggers = {
+    always = timestamp()
+  }
+  provisioner "local-exec" {
+    command     = "npm install --prefix ./stage/nodejs --no-save --no-package-json --no-package-lock --omit=dev --target_arch=x64 --target_platform=linux js-yaml"
+    working_dir = "${path.module}/sources/standard"
+  }
+  provisioner "local-exec" {
+    command     = "cp -r ./nodejs/ ./stage/nodejs/node_modules/"
+    working_dir = "${path.module}/sources/standard"
+  }
 }
 
 resource "null_resource" "this_nodejs" {
   for_each = local.nodejs_synthetics_url
   triggers = {
-    hash_sources = local.hash_sources
+    hash_requests_content = local.hash_requests_content[each.key]
   }
   provisioner "local-exec" {
-    command     = "npm install --prefix ./${each.key}/nodejs --no-save --no-package-json --no-package-lock --omit=dev --target_arch=x64 --target_platform=linux js-yaml"
+    command     = "cp -r ./stage/nodejs ./${each.key}/nodejs"
     working_dir = "${path.module}/sources/standard"
   }
-  provisioner "local-exec" {
-    command     = "cp -r ./nodejs/ ./${each.key}/nodejs/node_modules/"
-    working_dir = "${path.module}/sources/standard"
-  }
+  depends_on = [
+    null_resource.stage_nodejs,
+    local_file.script_config_nodejs
+  ]
 }
 
 resource "archive_file" "script_url_nodejs" {
   for_each    = local.nodejs_synthetics_url
   output_path = local.zip_files_nodejs[each.key].zip_file_path
   type        = "zip"
-  source_dir  = "${path.module}/sources/standard/${each.key}"
+  source_dir  = "${path.module}/sources/standard/stage"
   excludes = [
     "**/example*.yaml",
     "**/requirements.txt",
   ]
   depends_on = [
+    null_resource.this_nodejs,
     local_file.script_config_nodejs
   ]
   lifecycle {
     replace_triggered_by = [
-      null_resource.this_nodejs[each.key],
-      local_file.script_config_nodejs[each.key].id,
+      local_file.script_config_nodejs[each.key].content_sha256,
     ]
   }
 }
@@ -102,11 +119,11 @@ resource "archive_file" "script_custom_node" {
     "**/requirements.txt",
   ]
   depends_on = [
+    null_resource.this_nodejs,
     local_file.script_custom_node,
   ]
   lifecycle {
     replace_triggered_by = [
-      null_resource.this_nodejs,
       local_file.script_custom_node[each.key].id,
     ]
   }
