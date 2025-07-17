@@ -9,19 +9,6 @@
 
 locals {
   default_runtime_version = "syn-python-selenium-6.0"
-  synthetics = merge([
-    for group in var.groups : {
-      for canary in group.canaries : "${group.name}-${canary.name}" => {
-        group             = group
-        canary            = canary
-        canary_final_name = format("synth-%s-%s", canary.name, local.system_name)
-      }
-    }
-  ]...)
-  synth_groups = {
-    for group in var.groups : group.name => group
-  }
-  s3_location_bucket_name = var.create_artifacts_bucket ? module.synthetics_artifacts.s3_bucket_id : data.aws_s3_bucket.artifacts[0].bucket
   request_scripts_map = {
     for script in var.request_scripts : script.name => {
       name            = script.name
@@ -29,6 +16,23 @@ locals {
       runtime_version = script.runtime_version
     }
   }
+  synthetics = merge([
+    for group in var.groups : {
+      for canary in group.canaries : "${group.name}-${canary.name}" => {
+        group             = group
+        canary            = canary
+        canary_final_name = format("synth-%s-%s", canary.name, local.system_name)
+        is_url            = upper(try(canary.requests_type, "URL")) == "URL"
+        is_script         = upper(try(canary.requests_type, "URL")) == "SCRIPT"
+        is_nodejs         = strcontains(try(local.request_scripts_map[canary.request_script_ref].runtime_version, canary.runtime_version, local.default_runtime_version), "nodejs")
+        is_python         = strcontains(try(local.request_scripts_map[canary.request_script_ref].runtime_version, canary.runtime_version, local.default_runtime_version), "python")
+      }
+    }
+  ]...)
+  synth_groups = {
+    for group in var.groups : group.name => group
+  }
+  s3_location_bucket_name = var.create_artifacts_bucket ? module.synthetics_artifacts.s3_bucket_id : data.aws_s3_bucket.artifacts[0].bucket
 }
 
 data "aws_s3_bucket" "artifacts" {
@@ -55,8 +59,8 @@ resource "aws_synthetics_canary" "this" {
   name                 = each.value.canary_final_name
   start_canary         = try(each.value.canary.enabled, true)
   runtime_version      = try(each.value.canary.runtime_version, local.request_scripts_map[each.value.canary.request_script_ref].runtime_version, local.default_runtime_version)
-  handler = try(each.value.canary.requests_type, "URL") == "URL" ? "canary_handler.handler" : (
-    try(each.value.canary.requests_type, "URL") == "SCRIPT" ? try(each.value.canary.handler, "custom_handler.handler") :
+  handler = each.value.is_url ? "canary_handler.handler" : (
+    each.value.is_script ? try(each.value.canary.handler, "custom_handler.handler") :
     try(each.value.canary.handler, "")
 
   )
@@ -64,9 +68,11 @@ resource "aws_synthetics_canary" "this" {
   success_retention_period = try(each.value.canary.success_retention_period, 1)
   failure_retention_period = try(each.value.canary.failure_retention_period, 1)
   s3_bucket                = local.s3_location_bucket_name
-  s3_key                   = local.zip_files[each.key].bucket_key
-  s3_version = try(each.value.canary.requests_type, "URL") == "URL" ? aws_s3_object.script_url[each.key].version_id : (
-    try(each.value.canary.requests_type, "URL") == "SCRIPT" ? aws_s3_object.script_custom[each.key].version_id : null
+  s3_key                   = try(local.zip_files_nodejs[each.key].bucket_key, local.zip_files_python[each.key].bucket_key)
+  s3_version = each.value.is_url ? try(
+    aws_s3_object.script_url_nodejs[each.key].version_id, aws_s3_object.script_url_python[each.key].version_id
+    ) : (
+    each.value.is_script ? aws_s3_object.script_custom[each.key].version_id : null
   )
   schedule {
     expression          = each.value.canary.schedule_expression
@@ -81,8 +87,10 @@ resource "aws_synthetics_canary" "this" {
   }
 
   run_config {
-    environment_variables = merge({
-      CONFIG_PATH = "/opt/python/${local.zip_files[each.key].file_name}"
+    environment_variables = merge(each.value.is_nodejs ? {
+      CONFIG_PATH = "/opt/nodejs/${local.zip_files_nodejs[each.key].file_name}"
+      } : {
+      CONFIG_PATH = "/opt/python/${local.zip_files_python[each.key].file_name}"
       },
       try(each.value.group.default_run_config.environment_variables, {}),
       try(each.value.canary.run_config.environment_variables, {})
