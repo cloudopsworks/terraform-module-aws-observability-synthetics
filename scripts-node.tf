@@ -15,7 +15,7 @@ locals {
       bucket_key    = "upload/scripts/${key}.zip"
       zip_file_path = "${path.module}/scripts/${key}.zip"
     }
-    if strcontains(try(local.request_scripts_map[content.canary.request_script_ref].runtime_version, content.canary.runtime_version, local.default_runtime_version), "nodejs")
+    if content.is_nodejs
   }
   nodejs_synthetics_all = {
     for key, synth in local.synthetics : key => synth
@@ -33,7 +33,7 @@ locals {
 
 resource "local_file" "script_config_nodejs" {
   for_each        = local.nodejs_synthetics_all
-  content         = local.canary_content[each.key]
+  content         = local.canary_requests_content[each.key]
   filename        = format("%s%s", local.zip_files_nodejs[each.key].file_path, local.zip_files_nodejs[each.key].file_name)
   file_permission = "0644"
 }
@@ -79,7 +79,7 @@ resource "aws_s3_object" "script_url_nodejs" {
   bucket      = local.s3_location_bucket_name
   key         = local.zip_files_nodejs[each.key].bucket_key
   source      = archive_file.script_url_nodejs[each.key].output_path
-  source_hash = sha256(format("%s-%s", local.hash_content[each.key], local.hash_sources))
+  source_hash = archive_file.script_url_nodejs[each.key].output_sha256
   tags = {
     synthetic_group_key  = each.value.group.name
     synthetic_canary_key = each.value.canary.name

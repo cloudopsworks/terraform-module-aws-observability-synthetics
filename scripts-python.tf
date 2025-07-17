@@ -8,17 +8,29 @@
 #
 
 locals {
-  # compute has from ${path.module}/sources
-  hash_sources = upper(sha256(join("", [for file_to_hash in fileset(".", "${path.module}/sources/**") : filesha256(file_to_hash)])))
-  canary_content = {
+  # compute hash from ${path.module}/sources will generate on changes from updates from this module
+  hash_sources = upper(
+    sha256(
+      join("", [
+        filesha256("${path.module}/sources/standard/requirements.txt"),
+        filesha256("${path.module}/sources/standard/nodejs/node_modules/canary_handler.js"),
+        filesha256("${path.module}/sources/standard/python/canary_handler.py"),
+      ])
+    )
+  )
+  canary_requests_content = {
     for key, synthetic in local.synthetics : key => yamlencode({
       requests = synthetic.canary.requests
     })
-    if upper(try(synthetic.canary.requests_type, "URL")) == "URL"
+    if synthetic.is_url
   }
-  hash_content = {
-    for key, content in local.canary_content : key => upper(sha256(content))
-  }
+  hash_requests_content = upper(
+    sha256(
+      join("", [
+        for key, content in local.canary_requests_content : sha256(content)
+      ])
+    )
+  )
   zip_files_python = {
     for key, content in local.synthetics : key => {
       file_path     = "${path.module}/sources/standard/python/"
@@ -44,14 +56,15 @@ locals {
 
 resource "local_file" "script_config_python" {
   for_each        = local.python_synthetics_all
-  content         = local.canary_content[each.key]
+  content         = local.canary_requests_content[each.key]
   filename        = format("%s%s", local.zip_files_python[each.key].file_path, local.zip_files_python[each.key].file_name)
   file_permission = "0644"
 }
 
 resource "null_resource" "this_python" {
   triggers = {
-    hash_sources = local.hash_sources
+    hash_sources          = local.hash_sources
+    hash_requests_content = local.hash_requests_content
   }
   provisioner "local-exec" {
     command     = "python3 -m pip install -r requirements.txt --target ./python --platform manylinux_2_17_x86_64 --python-version 3.11 --no-deps --upgrade"
