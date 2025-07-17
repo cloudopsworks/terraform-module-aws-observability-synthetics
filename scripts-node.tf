@@ -48,7 +48,7 @@ resource "null_resource" "this_nodejs" {
     working_dir = "${path.module}/sources/standard"
   }
   provisioner "local-exec" {
-    command     = "cp -r ./nodejs/ ./nodejs/node_modules/"
+    command     = "cp -r ./nodejs/ ./${each.key}/nodejs/node_modules/"
     working_dir = "${path.module}/sources/standard"
   }
 }
