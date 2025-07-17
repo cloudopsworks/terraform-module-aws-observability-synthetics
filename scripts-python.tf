@@ -55,6 +55,9 @@ resource "local_file" "script_config_python" {
   content         = local.canary_requests_content[each.key]
   filename        = format("%s%s", local.zip_files_python[each.key].file_path, local.zip_files_python[each.key].file_name)
   file_permission = "0644"
+  depends_on = [
+    null_resource.stage_python
+  ]
 }
 
 resource "null_resource" "stage_python" {
@@ -86,38 +89,56 @@ resource "null_resource" "this_python" {
   ]
 }
 
-resource "archive_file" "script_url_python" {
-  for_each    = local.python_synthetics_url
-  output_path = local.zip_files_python[each.key].zip_file_path
-  type        = "zip"
-  source_dir  = "${path.module}/sources/standard/${each.key}/"
-  excludes = [
-    "example*.yaml",
-    "requirements.txt",
-    "nodejs/**/*",
-  ]
-  depends_on = [
-    null_resource.stage_python,
-    null_resource.this_python,
-    local_file.script_config_python
-  ]
-  lifecycle {
-    replace_triggered_by = [
-      local_file.script_config_python[each.key].content_sha256,
-    ]
+resource "null_resource" "archive_url_python" {
+  for_each = local.nodejs_synthetics_url
+  triggers = {
+    script_config = local_file.script_config_nodejs[each.key].content_sha256
   }
+  provisioner "local-exec" {
+    command = "zip -r ${local.zip_files_nodejs[each.key].zip_file_path} ${path.module}/sources/standard/${each.key}/"
+  }
+  depends_on = [
+    null_resource.this_nodejs,
+    local_file.script_config_nodejs
+  ]
 }
+
+# resource "archive_file" "script_url_python" {
+#   for_each    = local.python_synthetics_url
+#   output_path = local.zip_files_python[each.key].zip_file_path
+#   type        = "zip"
+#   source_dir  = "${path.module}/sources/standard/${each.key}/"
+#   excludes = [
+#     "example*.yaml",
+#     "requirements.txt",
+#     "nodejs/**/*",
+#   ]
+#   depends_on = [
+#     null_resource.stage_python,
+#     null_resource.this_python,
+#     local_file.script_config_python
+#   ]
+#   lifecycle {
+#     replace_triggered_by = [
+#       local_file.script_config_python[each.key].content_sha256,
+#     ]
+#   }
+# }
 
 resource "aws_s3_object" "script_url_python" {
   for_each    = local.python_synthetics_url
   bucket      = local.s3_location_bucket_name
   key         = local.zip_files_python[each.key].bucket_key
-  source      = archive_file.script_url_python[each.key].output_path
-  source_hash = archive_file.script_url_python[each.key].output_sha256
+  source      = local.zip_files_python[each.key].zip_file_path
+  source_hash = local.hash_requests_content[each.key]
   tags = {
     synthetic_group_key  = each.value.group.name
     synthetic_canary_key = each.value.canary.name
   }
+  depends_on = [
+    null_resource.archive_url_python,
+    local_file.script_config_python
+  ]
 }
 
 resource "local_file" "script_custom_python" {

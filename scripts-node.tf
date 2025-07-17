@@ -70,36 +70,54 @@ resource "null_resource" "this_nodejs" {
   ]
 }
 
-resource "archive_file" "script_url_nodejs" {
-  for_each    = local.nodejs_synthetics_url
-  output_path = local.zip_files_nodejs[each.key].zip_file_path
-  type        = "zip"
-  source_dir  = "${path.module}/sources/standard/${each.key}/"
-  excludes = [
-    "**/example*.yaml",
-    "**/requirements.txt",
-  ]
+resource "null_resource" "archive_url_nodejs" {
+  for_each = local.nodejs_synthetics_url
+  triggers = {
+    script_config = local_file.script_config_nodejs[each.key].content_sha256
+  }
+  provisioner "local-exec" {
+    command = "zip -r ${local.zip_files_nodejs[each.key].zip_file_path} ${path.module}/sources/standard/${each.key}/"
+  }
   depends_on = [
     null_resource.this_nodejs,
     local_file.script_config_nodejs
   ]
-  lifecycle {
-    replace_triggered_by = [
-      local_file.script_config_nodejs[each.key].content_sha256,
-    ]
-  }
 }
+
+# resource "archive_file" "script_url_nodejs" {
+#   for_each    = local.nodejs_synthetics_url
+#   output_path = local.zip_files_nodejs[each.key].zip_file_path
+#   type        = "zip"
+#   source_dir  = "${path.module}/sources/standard/${each.key}/"
+#   excludes = [
+#     "**/example*.yaml",
+#     "**/requirements.txt",
+#   ]
+#   depends_on = [
+#     null_resource.this_nodejs,
+#     local_file.script_config_nodejs
+#   ]
+#   lifecycle {
+#     replace_triggered_by = [
+#       local_file.script_config_nodejs[each.key].content_sha256,
+#     ]
+#   }
+# }
 
 resource "aws_s3_object" "script_url_nodejs" {
   for_each    = local.nodejs_synthetics_url
   bucket      = local.s3_location_bucket_name
   key         = local.zip_files_nodejs[each.key].bucket_key
-  source      = archive_file.script_url_nodejs[each.key].output_path
-  source_hash = archive_file.script_url_nodejs[each.key].output_sha256
+  source      = local.zip_files_nodejs[each.key].zip_file_path
+  source_hash = local.hash_requests_content[each.key]
   tags = {
     synthetic_group_key  = each.value.group.name
     synthetic_canary_key = each.value.canary.name
   }
+  depends_on = [
+    null_resource.archive_url_nodejs,
+    local_file.script_config_nodejs
+  ]
 }
 
 resource "local_file" "script_custom_node" {
