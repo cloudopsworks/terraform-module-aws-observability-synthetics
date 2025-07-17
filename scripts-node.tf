@@ -60,32 +60,20 @@ resource "null_resource" "stage_nodejs" {
   }
 }
 
-resource "null_resource" "this_nodejs" {
-  for_each = local.nodejs_synthetics_url
-  triggers = {
-    hash_requests_content = local.hash_requests_content[each.key]
-  }
-  provisioner "local-exec" {
-    command     = "cp -r ./stage/nodejs ./${each.key}/"
-    working_dir = "${path.module}/sources/standard"
-  }
-  depends_on = [
-    null_resource.stage_nodejs,
-    local_file.script_config_nodejs
-  ]
-}
-
 resource "null_resource" "archive_url_nodejs" {
   for_each = local.nodejs_synthetics_url
   triggers = {
     script_config = local_file.script_config_nodejs[each.key].content_sha256
   }
   provisioner "local-exec" {
+    command     = "cp -r ./stage/nodejs ./${each.key}/"
+    working_dir = "${path.module}/sources/standard"
+  }
+  provisioner "local-exec" {
     command     = "zip -r ${local.zip_files_nodejs[each.key].zip_file_path} ."
     working_dir = "${path.module}/sources/standard/${each.key}/"
   }
   depends_on = [
-    null_resource.this_nodejs,
     local_file.script_config_nodejs
   ]
 }

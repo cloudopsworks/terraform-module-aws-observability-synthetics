@@ -79,32 +79,20 @@ resource "null_resource" "stage_python" {
   }
 }
 
-resource "null_resource" "this_python" {
-  for_each = local.python_synthetics_url
-  triggers = {
-    hash_requests_content = local.hash_requests_content[each.key]
-  }
-  provisioner "local-exec" {
-    command     = "cp -r ./stage/python ./${each.key}/"
-    working_dir = "${path.module}/sources/standard"
-  }
-  depends_on = [
-    null_resource.stage_python,
-    local_file.script_config_python
-  ]
-}
-
 resource "null_resource" "archive_url_python" {
   for_each = local.python_synthetics_url
   triggers = {
     script_config = local_file.script_config_python[each.key].content_sha256
   }
   provisioner "local-exec" {
+    command     = "cp -r ./stage/python ./${each.key}/"
+    working_dir = "${path.module}/sources/standard"
+  }
+  provisioner "local-exec" {
     command     = "zip -r ${local.zip_files_python[each.key].zip_file_path} ."
     working_dir = "${path.module}/sources/standard/${each.key}/"
   }
   depends_on = [
-    null_resource.this_python,
     local_file.script_config_python
   ]
 }
