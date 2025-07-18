@@ -359,11 +359,11 @@ Available targets:
 
 | Name | Version |
 |------|---------|
-| <a name="provider_archive"></a> [archive](#provider\_archive) | 2.7.1 |
-| <a name="provider_aws"></a> [aws](#provider\_aws) | 6.3.0 |
-| <a name="provider_local"></a> [local](#provider\_local) | 2.5.3 |
-| <a name="provider_null"></a> [null](#provider\_null) | 3.2.4 |
-| <a name="provider_random"></a> [random](#provider\_random) | 3.7.2 |
+| <a name="provider_archive"></a> [archive](#provider\_archive) | ~> 2.7 |
+| <a name="provider_aws"></a> [aws](#provider\_aws) | ~> 6.2 |
+| <a name="provider_local"></a> [local](#provider\_local) | ~> 2.5 |
+| <a name="provider_null"></a> [null](#provider\_null) | ~> 3.2 |
+| <a name="provider_random"></a> [random](#provider\_random) | ~> 3.5 |
 
 ## Modules
 
@@ -378,21 +378,25 @@ Available targets:
 |------|------|
 | [archive_file.script_custom_node](https://registry.terraform.io/providers/hashicorp/archive/latest/docs/resources/file) | resource |
 | [archive_file.script_custom_python](https://registry.terraform.io/providers/hashicorp/archive/latest/docs/resources/file) | resource |
-| [archive_file.script_url](https://registry.terraform.io/providers/hashicorp/archive/latest/docs/resources/file) | resource |
 | [aws_cloudwatch_metric_alarm.canary_failed](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudwatch_metric_alarm) | resource |
 | [aws_ec2_tag.synthetic_enis](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ec2_tag) | resource |
 | [aws_iam_role.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
 | [aws_iam_role_policy.synthetic_policy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy) | resource |
 | [aws_s3_object.script_custom](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_object) | resource |
-| [aws_s3_object.script_url](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_object) | resource |
+| [aws_s3_object.script_url_nodejs](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_object) | resource |
+| [aws_s3_object.script_url_python](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_object) | resource |
 | [aws_security_group.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group) | resource |
 | [aws_synthetics_canary.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/synthetics_canary) | resource |
 | [aws_synthetics_group.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/synthetics_group) | resource |
 | [aws_synthetics_group_association.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/synthetics_group_association) | resource |
-| [local_file.script_config](https://registry.terraform.io/providers/hashicorp/local/latest/docs/resources/file) | resource |
+| [local_file.script_config_nodejs](https://registry.terraform.io/providers/hashicorp/local/latest/docs/resources/file) | resource |
+| [local_file.script_config_python](https://registry.terraform.io/providers/hashicorp/local/latest/docs/resources/file) | resource |
 | [local_file.script_custom_node](https://registry.terraform.io/providers/hashicorp/local/latest/docs/resources/file) | resource |
 | [local_file.script_custom_python](https://registry.terraform.io/providers/hashicorp/local/latest/docs/resources/file) | resource |
-| [null_resource.this](https://registry.terraform.io/providers/hashicorp/null/latest/docs/resources/resource) | resource |
+| [null_resource.archive_url_nodejs](https://registry.terraform.io/providers/hashicorp/null/latest/docs/resources/resource) | resource |
+| [null_resource.archive_url_python](https://registry.terraform.io/providers/hashicorp/null/latest/docs/resources/resource) | resource |
+| [null_resource.stage_nodejs](https://registry.terraform.io/providers/hashicorp/null/latest/docs/resources/resource) | resource |
+| [null_resource.stage_python](https://registry.terraform.io/providers/hashicorp/null/latest/docs/resources/resource) | resource |
 | [random_string.random](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/string) | resource |
 | [aws_caller_identity.current](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/caller_identity) | data source |
 | [aws_iam_policy_document.assume_role_policy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
@@ -416,7 +420,7 @@ Available targets:
 | <a name="input_groups"></a> [groups](#input\_groups) | Settings for the synthetics configurations | `any` | `[]` | no |
 | <a name="input_is_hub"></a> [is\_hub](#input\_is\_hub) | Is this a hub or spoke configuration? | `bool` | `false` | no |
 | <a name="input_org"></a> [org](#input\_org) | Organization details | <pre>object({<br/>    organization_name = string<br/>    organization_unit = string<br/>    environment_type  = string<br/>    environment_name  = string<br/>  })</pre> | n/a | yes |
-| <a name="input_request_scripts"></a> [request\_scripts](#input\_request\_scripts) | (optional) Array of request scripts for the Synthetics canaries | <pre>list(object({<br/>    name    = string<br/>    content = string<br/>  }))</pre> | `[]` | no |
+| <a name="input_request_scripts"></a> [request\_scripts](#input\_request\_scripts) | (optional) Array of request scripts for the Synthetics canaries | <pre>list(object({<br/>    name            = string<br/>    content         = string<br/>    runtime_version = string<br/>  }))</pre> | `[]` | no |
 | <a name="input_spoke_def"></a> [spoke\_def](#input\_spoke\_def) | Spoke ID Number, must be a 3 digit number | `string` | `"001"` | no |
 | <a name="input_vpc"></a> [vpc](#input\_vpc) | (required) VPC configuration for the Synthetics canaries | <pre>object({<br/>    enabled            = optional(bool, true)<br/>    vpc_id             = optional(string, "")<br/>    subnet_ids         = optional(list(string), [])<br/>    security_group_ids = optional(list(string), [])<br/>  })</pre> | n/a | yes |
 
