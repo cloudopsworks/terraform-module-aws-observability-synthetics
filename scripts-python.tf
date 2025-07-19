@@ -70,7 +70,7 @@ resource "null_resource" "stage_python" {
     always = timestamp()
   }
   provisioner "local-exec" {
-    command     = "python3 -m pip install -r requirements.txt --target ./stage/python --platform manylinux_2_17_x86_64 --python-version 3.11 --no-deps --upgrade"
+    command     = "python3 -m pip install -r requirements.txt --target ./stage/python --platform manylinux_2_17_x86_64 --python-version 3.11 --implementation cp --only-binary=:all: --no-deps --upgrade"
     working_dir = "${path.module}/sources/standard/"
   }
   provisioner "local-exec" {
