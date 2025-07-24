@@ -48,7 +48,7 @@ locals {
     for key, synth in local.synthetics : key => synth
     if synth.is_python && synth.script_configuration.is_custom
   }
-  python_scripts_sha = sha256(join("", [for item in fileset("${path.module}/sources/standard/python", "**/*.py") : filesha256(item)]))
+  python_scripts_sha = sha256(join("", [for item in fileset("${path.module}", "sources/standard/python/**/*.py") : filesha256(item)]))
 }
 
 resource "local_file" "script_config_python" {
