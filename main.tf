@@ -15,7 +15,7 @@ locals {
       is_custom       = false
     }
     SCRIPT = {
-      handler         = "canary_handler.handler"
+      handler         = "custom_handler.handler"
       runtime_version = "syn-nodejs-puppeteer-10.0"
       is_custom       = true
     }

@@ -120,7 +120,7 @@ resource "aws_s3_object" "script_url_nodejs" {
 resource "local_file" "script_custom_node" {
   for_each        = local.nodejs_synthetics_custom
   content         = try(local.request_scripts_map[each.value.canary.request_script_ref].content, each.value.canary.request_script)
-  filename        = "${path.module}/sources/custom/${each.key}/nodejs/node_modules/custom_handler.js"
+  filename        = "${path.module}/sources/custom/${each.key}/nodejs/node_modules/${split(".", try(each.value.canary.handler, each.value.script_configuration.handler))[0]}.js"
   file_permission = "0644"
 }
 
