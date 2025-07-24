@@ -22,7 +22,7 @@ locals {
     for key, synthetic in local.synthetics : key => yamlencode({
       requests = synthetic.canary.requests
     })
-    if synthetic.is_url
+    if !synthetic.script_configuration.is_custom
   }
   hash_requests_content = {
     for key, content in local.canary_requests_content : key => upper(sha256(content))
@@ -42,11 +42,11 @@ locals {
   }
   python_synthetics_url = {
     for key, synth in local.synthetics : key => synth
-    if synth.is_python && synth.is_url
+    if synth.is_python && !synth.script_configuration.is_custom
   }
   python_synthetics_custom = {
     for key, synth in local.synthetics : key => synth
-    if synth.is_python && synth.is_script
+    if synth.is_python && synth.script_configuration.is_custom
   }
 }
 
@@ -93,7 +93,7 @@ resource "null_resource" "archive_url_python" {
     working_dir = "${path.module}/sources/standard/${each.key}/"
   }
   provisioner "local-exec" {
-    command     = "mv /tmp/${each.key}.zip ${local.zip_files_python[each.key].zip_file_path}"
+    command = "mv /tmp/${each.key}.zip ${local.zip_files_python[each.key].zip_file_path}"
   }
   depends_on = [
     local_file.script_config_python

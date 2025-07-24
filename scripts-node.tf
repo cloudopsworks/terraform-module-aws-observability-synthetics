@@ -23,11 +23,11 @@ locals {
   }
   nodejs_synthetics_url = {
     for key, synth in local.synthetics : key => synth
-    if synth.is_nodejs && synth.is_url
+    if synth.is_nodejs && !synth.script_configuration.is_custom
   }
   nodejs_synthetics_custom = {
     for key, synth in local.synthetics : key => synth
-    if synth.is_nodejs && synth.is_script
+    if synth.is_nodejs && synth.script_configuration.is_custom
   }
 }
 
@@ -74,7 +74,7 @@ resource "null_resource" "archive_url_nodejs" {
     working_dir = "${path.module}/sources/standard/${each.key}/"
   }
   provisioner "local-exec" {
-    command     = "mv /tmp/${each.key}.zip ${local.zip_files_nodejs[each.key].zip_file_path}"
+    command = "mv /tmp/${each.key}.zip ${local.zip_files_nodejs[each.key].zip_file_path}"
   }
   depends_on = [
     local_file.script_config_nodejs

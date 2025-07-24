@@ -8,24 +8,51 @@
 #
 
 locals {
-  default_runtime_version = "syn-python-selenium-6.0"
+  script_configuration_map = {
+    URL = {
+      handler         = "canary_handler.handler"
+      runtime_version = "syn-python-selenium-6.0"
+      is_custom       = false
+    }
+    SCRIPT = {
+      handler         = "canary_handler.handler"
+      runtime_version = "syn-nodejs-puppeteer-10.0"
+      is_custom       = true
+    }
+    API = {
+      handler         = "canary_handler.handler"
+      runtime_version = "syn-nodejs-puppeteer-10.0"
+      is_custom       = false
+    }
+    JSURL = {
+      handler         = "canary_handler.handler"
+      runtime_version = "syn-nodejs-puppeteer-10.0"
+      is_custom       = false
+    }
+    TRACEURL = {
+      handler         = "trace_canary_handler.handler"
+      runtime_version = "syn-nodejs-puppeteer-10.0"
+      is_custom       = false
+    }
+  }
   request_scripts_map = {
     for script in var.request_scripts : script.name => {
       name            = script.name
       content         = script.content
+      handler         = try(script.handler, "custom_handler.handler")
       runtime_version = script.runtime_version
     }
   }
   synthetics = merge([
     for group in var.groups : {
       for canary in group.canaries : "${group.name}-${canary.name}" => {
-        group             = group
-        canary            = canary
-        canary_final_name = format("synth-%s-%s", canary.name, local.system_name)
-        is_url            = upper(try(canary.requests_type, "URL")) == "URL"
-        is_script         = upper(try(canary.requests_type, "URL")) == "SCRIPT"
-        is_nodejs         = strcontains(try(local.request_scripts_map[canary.request_script_ref].runtime_version, canary.runtime_version, local.default_runtime_version), "nodejs")
-        is_python         = strcontains(try(local.request_scripts_map[canary.request_script_ref].runtime_version, canary.runtime_version, local.default_runtime_version), "python")
+        group                = group
+        canary               = canary
+        canary_final_name    = format("synth-%s-%s", canary.name, local.system_name)
+        request_type         = upper(try(canary.requests_type, "URL"))
+        is_nodejs            = strcontains(try(local.request_scripts_map[canary.request_script_ref].runtime_version, canary.runtime_version, local.script_configuration_map[upper(try(canary.requests_type, "URL"))]), "nodejs")
+        is_python            = strcontains(try(local.request_scripts_map[canary.request_script_ref].runtime_version, canary.runtime_version, local.script_configuration_map[upper(try(canary.requests_type, "URL"))]), "python")
+        script_configuration = local.script_configuration_map[upper(try(canary.requests_type, "URL"))]
       }
     }
   ]...)
@@ -53,27 +80,19 @@ resource "aws_synthetics_group" "this" {
 }
 
 resource "aws_synthetics_canary" "this" {
-  for_each             = local.synthetics
-  artifact_s3_location = "s3://${local.s3_location_bucket_name}"
-  execution_role_arn   = aws_iam_role.this[each.value.group.name].arn
-  name                 = each.value.canary_final_name
-  start_canary         = try(each.value.canary.enabled, true)
-  runtime_version      = try(each.value.canary.runtime_version, local.request_scripts_map[each.value.canary.request_script_ref].runtime_version, local.default_runtime_version)
-  handler = each.value.is_url ? "canary_handler.handler" : (
-    each.value.is_script ? try(each.value.canary.handler, "custom_handler.handler") :
-    try(each.value.canary.handler, "")
-
-  )
+  for_each                 = local.synthetics
+  artifact_s3_location     = "s3://${local.s3_location_bucket_name}"
+  execution_role_arn       = aws_iam_role.this[each.value.group.name].arn
+  name                     = each.value.canary_final_name
+  start_canary             = try(each.value.canary.enabled, true)
+  runtime_version          = try(each.value.canary.runtime_version, local.request_scripts_map[each.value.canary.request_script_ref].runtime_version, each.value.script_configuration.runtime_version)
+  handler                  = try(each.value.canary.handler, local.request_scripts_map[each.value.canary.request_script_ref].handler, each.value.script_configuration.handler)
   delete_lambda            = !try(each.value.canary.preserve_lambda, false)
   success_retention_period = try(each.value.canary.success_retention_period, 1)
   failure_retention_period = try(each.value.canary.failure_retention_period, 1)
   s3_bucket                = local.s3_location_bucket_name
   s3_key                   = try(local.zip_files_nodejs[each.key].bucket_key, local.zip_files_python[each.key].bucket_key)
-  s3_version = each.value.is_url ? try(
-    aws_s3_object.script_url_nodejs[each.key].version_id, aws_s3_object.script_url_python[each.key].version_id
-    ) : (
-    each.value.is_script ? aws_s3_object.script_custom[each.key].version_id : null
-  )
+  s3_version               = try(aws_s3_object.script_url_nodejs[each.key].version_id, aws_s3_object.script_url_python[each.key].version_id, aws_s3_object.script_custom[each.key].version_id)
   schedule {
     expression          = each.value.canary.schedule_expression
     duration_in_seconds = try(each.value.canary.schedule_duration, null)
