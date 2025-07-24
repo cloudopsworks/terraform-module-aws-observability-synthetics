@@ -50,8 +50,8 @@ locals {
         canary               = canary
         canary_final_name    = format("synth-%s-%s", canary.name, local.system_name)
         request_type         = upper(try(canary.requests_type, "URL"))
-        is_nodejs            = strcontains(try(local.request_scripts_map[canary.request_script_ref].runtime_version, canary.runtime_version, local.script_configuration_map[upper(try(canary.requests_type, "URL"))]), "nodejs")
-        is_python            = strcontains(try(local.request_scripts_map[canary.request_script_ref].runtime_version, canary.runtime_version, local.script_configuration_map[upper(try(canary.requests_type, "URL"))]), "python")
+        is_nodejs            = strcontains(try(local.request_scripts_map[canary.request_script_ref].runtime_version, canary.runtime_version, local.script_configuration_map[upper(try(canary.requests_type, "URL"))].runtime_version), "nodejs")
+        is_python            = strcontains(try(local.request_scripts_map[canary.request_script_ref].runtime_version, canary.runtime_version, local.script_configuration_map[upper(try(canary.requests_type, "URL"))].runtime_version), "python")
         script_configuration = local.script_configuration_map[upper(try(canary.requests_type, "URL"))]
       }
     }
