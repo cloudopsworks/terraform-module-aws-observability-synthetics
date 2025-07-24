@@ -108,7 +108,7 @@ resource "aws_s3_object" "script_url_nodejs" {
   bucket      = local.s3_location_bucket_name
   key         = local.zip_files_nodejs[each.key].bucket_key
   source      = local.zip_files_nodejs[each.key].zip_file_path
-  source_hash = local.hash_requests_content[each.key]
+  source_hash = "${local.hash_requests_content[each.key]}-${local.nodejs_scripts_sha}"
   tags = {
     synthetic_group_key  = each.value.group.name
     synthetic_canary_key = each.value.canary.name
