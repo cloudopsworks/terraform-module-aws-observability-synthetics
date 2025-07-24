@@ -48,6 +48,7 @@ locals {
     for key, synth in local.synthetics : key => synth
     if synth.is_python && synth.script_configuration.is_custom
   }
+  python_scripts_sha = sha256(join("", [for item in fileset("${path.module}/sources/standard/python", "**/*.py") : filesha256(item)]))
 }
 
 resource "local_file" "script_config_python" {
@@ -82,7 +83,8 @@ resource "null_resource" "stage_python" {
 resource "null_resource" "archive_url_python" {
   for_each = local.python_synthetics_url
   triggers = {
-    script_config = local_file.script_config_python[each.key].content_sha256
+    script_config      = local_file.script_config_python[each.key].content_sha256
+    python_scripts_sha = local.python_scripts_sha
   }
   provisioner "local-exec" {
     command     = "cp -r ./stage/python ./${each.key}/"

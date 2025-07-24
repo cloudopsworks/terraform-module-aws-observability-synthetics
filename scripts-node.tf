@@ -29,6 +29,7 @@ locals {
     for key, synth in local.synthetics : key => synth
     if synth.is_nodejs && synth.script_configuration.is_custom
   }
+  nodejs_scripts_sha = sha256(join("", [for item in fileset("${path.module}/sources/standard/nodejs", "**/*.js") : filesha256(item)]))
 }
 
 resource "local_file" "script_config_nodejs" {
@@ -64,6 +65,7 @@ resource "null_resource" "archive_url_nodejs" {
   for_each = local.nodejs_synthetics_url
   triggers = {
     script_config = local_file.script_config_nodejs[each.key].content_sha256
+    scripts_sha   = local.nodejs_scripts_sha
   }
   provisioner "local-exec" {
     command     = "cp -r ./stage/nodejs ./${each.key}/"
