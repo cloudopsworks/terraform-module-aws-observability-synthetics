@@ -23,12 +23,13 @@ locals {
   }
   nodejs_synthetics_url = {
     for key, synth in local.synthetics : key => synth
-    if synth.is_nodejs && synth.is_url
+    if synth.is_nodejs && !synth.script_configuration.is_custom
   }
   nodejs_synthetics_custom = {
     for key, synth in local.synthetics : key => synth
-    if synth.is_nodejs && synth.is_script
+    if synth.is_nodejs && synth.script_configuration.is_custom
   }
+  nodejs_scripts_sha = sha256(join("", [for item in fileset("${path.module}", "sources/standard/nodejs/**/*.js") : filesha256(item)]))
 }
 
 resource "local_file" "script_config_nodejs" {
@@ -64,6 +65,7 @@ resource "null_resource" "archive_url_nodejs" {
   for_each = local.nodejs_synthetics_url
   triggers = {
     script_config = local_file.script_config_nodejs[each.key].content_sha256
+    scripts_sha   = local.nodejs_scripts_sha
   }
   provisioner "local-exec" {
     command     = "cp -r ./stage/nodejs ./${each.key}/"
@@ -74,7 +76,7 @@ resource "null_resource" "archive_url_nodejs" {
     working_dir = "${path.module}/sources/standard/${each.key}/"
   }
   provisioner "local-exec" {
-    command     = "mv /tmp/${each.key}.zip ${local.zip_files_nodejs[each.key].zip_file_path}"
+    command = "mv /tmp/${each.key}.zip ${local.zip_files_nodejs[each.key].zip_file_path}"
   }
   depends_on = [
     local_file.script_config_nodejs
@@ -106,7 +108,7 @@ resource "aws_s3_object" "script_url_nodejs" {
   bucket      = local.s3_location_bucket_name
   key         = local.zip_files_nodejs[each.key].bucket_key
   source      = local.zip_files_nodejs[each.key].zip_file_path
-  source_hash = local.hash_requests_content[each.key]
+  source_hash = "${local.hash_requests_content[each.key]}-${local.nodejs_scripts_sha}"
   tags = {
     synthetic_group_key  = each.value.group.name
     synthetic_canary_key = each.value.canary.name
@@ -120,7 +122,7 @@ resource "aws_s3_object" "script_url_nodejs" {
 resource "local_file" "script_custom_node" {
   for_each        = local.nodejs_synthetics_custom
   content         = try(local.request_scripts_map[each.value.canary.request_script_ref].content, each.value.canary.request_script)
-  filename        = "${path.module}/sources/custom/${each.key}/nodejs/node_modules/custom_handler.js"
+  filename        = "${path.module}/sources/custom/${each.key}/nodejs/node_modules/${split(".", try(each.value.canary.handler, each.value.script_configuration.handler))[0]}.js"
   file_permission = "0644"
 }
 

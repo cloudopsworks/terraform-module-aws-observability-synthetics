@@ -22,7 +22,7 @@ locals {
     for key, synthetic in local.synthetics : key => yamlencode({
       requests = synthetic.canary.requests
     })
-    if synthetic.is_url
+    if !synthetic.script_configuration.is_custom
   }
   hash_requests_content = {
     for key, content in local.canary_requests_content : key => upper(sha256(content))
@@ -42,12 +42,13 @@ locals {
   }
   python_synthetics_url = {
     for key, synth in local.synthetics : key => synth
-    if synth.is_python && synth.is_url
+    if synth.is_python && !synth.script_configuration.is_custom
   }
   python_synthetics_custom = {
     for key, synth in local.synthetics : key => synth
-    if synth.is_python && synth.is_script
+    if synth.is_python && synth.script_configuration.is_custom
   }
+  python_scripts_sha = sha256(join("", [for item in fileset("${path.module}", "sources/standard/python/**/*.py") : filesha256(item)]))
 }
 
 resource "local_file" "script_config_python" {
@@ -82,7 +83,8 @@ resource "null_resource" "stage_python" {
 resource "null_resource" "archive_url_python" {
   for_each = local.python_synthetics_url
   triggers = {
-    script_config = local_file.script_config_python[each.key].content_sha256
+    script_config      = local_file.script_config_python[each.key].content_sha256
+    python_scripts_sha = local.python_scripts_sha
   }
   provisioner "local-exec" {
     command     = "cp -r ./stage/python ./${each.key}/"
@@ -93,7 +95,7 @@ resource "null_resource" "archive_url_python" {
     working_dir = "${path.module}/sources/standard/${each.key}/"
   }
   provisioner "local-exec" {
-    command     = "mv /tmp/${each.key}.zip ${local.zip_files_python[each.key].zip_file_path}"
+    command = "mv /tmp/${each.key}.zip ${local.zip_files_python[each.key].zip_file_path}"
   }
   depends_on = [
     local_file.script_config_python
@@ -127,7 +129,7 @@ resource "aws_s3_object" "script_url_python" {
   bucket      = local.s3_location_bucket_name
   key         = local.zip_files_python[each.key].bucket_key
   source      = local.zip_files_python[each.key].zip_file_path
-  source_hash = local.hash_requests_content[each.key]
+  source_hash = "${local.hash_requests_content[each.key]}-${local.python_scripts_sha}"
   tags = {
     synthetic_group_key  = each.value.group.name
     synthetic_canary_key = each.value.canary.name
