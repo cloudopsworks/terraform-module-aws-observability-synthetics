@@ -122,22 +122,43 @@ resource "local_file" "script_custom_node" {
   file_permission = "0644"
 }
 
-resource "archive_file" "script_custom_node" {
-  for_each    = local.nodejs_synthetics_custom
-  output_path = local.zip_files_nodejs[each.key].zip_file_path
-  type        = "zip"
-  source_dir  = "${path.module}/sources/custom/${each.key}/"
-  excludes = [
-    "**/example*.yaml",
-    "**/requirements.txt",
-  ]
-  depends_on = [
-    local_file.script_custom_node,
-  ]
-  lifecycle {
-    replace_triggered_by = [
-      local_file.script_custom_node[each.key].content_sha256,
-    ]
+resource "terraform_data" "script_custom_node" {
+  for_each = local.python_synthetics_custom
+  input = {
+    zip_file = local.zip_files_nodejs[each.key].zip_file_path
+    sha256   = local_file.script_custom_python[each.key].content_sha256
   }
+  triggers_replace = [
+    local_file.script_custom_node[each.key].content_sha256
+  ]
+  provisioner "local-exec" {
+    command     = "zip -r /tmp/${each.key}-custom.zip ."
+    working_dir = "${path.module}/sources/custom/${each.key}/"
+  }
+  provisioner "local-exec" {
+    command = "mv /tmp/${each.key}-custom.zip ${local.zip_files_nodejs[each.key].zip_file_path}"
+  }
+  depends_on = [
+    local_file.script_custom_python,
+  ]
 }
+
+# resource "archive_file" "script_custom_node" {
+#   for_each    = local.nodejs_synthetics_custom
+#   output_path = local.zip_files_nodejs[each.key].zip_file_path
+#   type        = "zip"
+#   source_dir  = "${path.module}/sources/custom/${each.key}/"
+#   excludes = [
+#     "**/example*.yaml",
+#     "**/requirements.txt",
+#   ]
+#   depends_on = [
+#     local_file.script_custom_node,
+#   ]
+#   lifecycle {
+#     replace_triggered_by = [
+#       local_file.script_custom_node[each.key].content_sha256,
+#     ]
+#   }
+# }
 
