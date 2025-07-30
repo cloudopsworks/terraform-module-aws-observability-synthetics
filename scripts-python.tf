@@ -98,28 +98,6 @@ resource "null_resource" "archive_url_python" {
   ]
 }
 
-# resource "archive_file" "script_url_python" {
-#   for_each    = local.python_synthetics_url
-#   output_path = local.zip_files_python[each.key].zip_file_path
-#   type        = "zip"
-#   source_dir  = "${path.module}/sources/standard/${each.key}/"
-#   excludes = [
-#     "example*.yaml",
-#     "requirements.txt",
-#     "nodejs/**/*",
-#   ]
-#   depends_on = [
-#     null_resource.stage_python,
-#     null_resource.this_python,
-#     local_file.script_config_python
-#   ]
-#   lifecycle {
-#     replace_triggered_by = [
-#       local_file.script_config_python[each.key].content_sha256,
-#     ]
-#   }
-# }
-
 resource "aws_s3_object" "script_url_python" {
   for_each    = local.python_synthetics_url
   bucket      = local.s3_location_bucket_name
@@ -143,38 +121,59 @@ resource "local_file" "script_custom_python" {
   file_permission = "0644"
 }
 
-resource "archive_file" "script_custom_python" {
-  for_each    = local.python_synthetics_custom
-  output_path = local.zip_files_python[each.key].zip_file_path
-  type        = "zip"
-  source_dir  = "${path.module}/sources/custom/${each.key}/"
-  excludes = [
-    "**/example*.yaml",
-    "**/requirements.txt",
+resource "terraform_data" "script_custom_python" {
+  for_each = local.python_synthetics_custom
+  input = {
+    zip_file = local.zip_files_python[each.key].zip_file_path
+    sha256   = local_file.script_custom_python[each.key].content_sha256
+  }
+  triggers_replace = [
+    local_file.script_custom_python[each.key].content_sha256
   ]
+  provisioner "local-exec" {
+    command     = "zip -r /tmp/${each.key}-custom.zip ."
+    working_dir = "${path.module}/sources/custom/${each.key}/"
+  }
+  provisioner "local-exec" {
+    command = "mv /tmp/${each.key}-custom.zip ${local.zip_files_python[each.key].zip_file_path}"
+  }
   depends_on = [
     local_file.script_custom_python,
   ]
-  lifecycle {
-    replace_triggered_by = [
-      local_file.script_custom_python[each.key].content_sha256,
-    ]
-  }
 }
+
+# resource "archive_file" "script_custom_python" {
+#   for_each    = local.python_synthetics_custom
+#   output_path = local.zip_files_python[each.key].zip_file_path
+#   type        = "zip"
+#   source_dir  = "${path.module}/sources/custom/${each.key}/"
+#   excludes = [
+#     "**/example*.yaml",
+#     "**/requirements.txt",
+#   ]
+#   depends_on = [
+#     local_file.script_custom_python,
+#   ]
+#   lifecycle {
+#     replace_triggered_by = [
+#       local_file.script_custom_python[each.key].content_sha256,
+#     ]
+#   }
+# }
 
 # Generic for both Node.js and Python custom scripts
 resource "aws_s3_object" "script_custom" {
   for_each    = merge(local.python_synthetics_custom, local.nodejs_synthetics_custom)
   bucket      = local.s3_location_bucket_name
   key         = try(local.zip_files_nodejs[each.key].bucket_key, local.zip_files_python[each.key].bucket_key)
-  source      = try(archive_file.script_custom_node[each.key].output_path, archive_file.script_custom_python[each.key].output_path)
-  source_hash = try(archive_file.script_custom_node[each.key].output_sha256, archive_file.script_custom_python[each.key].output_sha256)
+  source      = try(terraform_data.script_custom_node[each.key].output.zip_file, terraform_data.script_custom_python[each.key].output.zip_file)
+  source_hash = try(terraform_data.script_custom_node[each.key].output.sha256, terraform_data.script_custom_python[each.key].output.sha256)
   tags = {
     synthetic_group_key  = each.value.group.name
     synthetic_canary_key = each.value.canary.name
   }
   depends_on = [
-    archive_file.script_custom_node,
-    archive_file.script_custom_python,
+    terraform_data.script_custom_node,
+    terraform_data.script_custom_python,
   ]
 }
