@@ -166,8 +166,8 @@ resource "aws_s3_object" "script_custom" {
   for_each    = merge(local.python_synthetics_custom, local.nodejs_synthetics_custom)
   bucket      = local.s3_location_bucket_name
   key         = try(local.zip_files_nodejs[each.key].bucket_key, local.zip_files_python[each.key].bucket_key)
-  source      = try(terraform_data.script_custom_node[each.key].output["zip_file"], terraform_data.script_custom_python[each.key].output["zip_file"])
-  source_hash = try(terraform_data.script_custom_node[each.key].output["sha256"], terraform_data.script_custom_python[each.key].output["sha256"])
+  source      = try(terraform_data.script_custom_node[each.key].input["zip_file"], terraform_data.script_custom_python[each.key].input["zip_file"])
+  source_hash = try(terraform_data.script_custom_node[each.key].input["sha256"], terraform_data.script_custom_python[each.key].input["sha256"])
   tags = {
     synthetic_group_key  = each.value.group.name
     synthetic_canary_key = each.value.canary.name
