@@ -48,7 +48,7 @@ resource "aws_cloudwatch_metric_alarm" "canary_failed" {
     for key, synthetic in local.synthetics : key => synthetic
     if try(synthetic.canary.alarms.enabled, true) && var.create_alarms
   }
-  alarm_name = format("[P%s] [%s] [%s] [%s] Synthetic Canary - %s",
+  alarm_name = format("[P%s] [%s] [%s] [%s] Synthetics Canary - %s",
     try(each.value.canary.alarms.priority, 4),
     lower(var.org.organization_unit),
     lower(var.org.environment_name),
