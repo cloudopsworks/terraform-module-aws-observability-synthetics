@@ -17,10 +17,6 @@ locals {
     }
     if content.is_nodejs
   }
-  nodejs_synthetics_all = {
-    for key, synth in local.synthetics : key => synth
-    if synth.is_nodejs
-  }
   nodejs_synthetics_url = {
     for key, synth in local.synthetics : key => synth
     if synth.is_nodejs && !synth.script_configuration.is_custom
@@ -33,7 +29,7 @@ locals {
 }
 
 resource "local_file" "script_config_nodejs" {
-  for_each        = local.nodejs_synthetics_all
+  for_each        = local.nodejs_synthetics_url
   content         = local.canary_requests_content[each.key]
   filename        = format("%s%s", local.zip_files_nodejs[each.key].file_path, local.zip_files_nodejs[each.key].file_name)
   file_permission = "0644"
