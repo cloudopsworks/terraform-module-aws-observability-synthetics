@@ -90,9 +90,9 @@ resource "aws_cloudwatch_metric_alarm" "canary_failed" {
     try(each.value.group.tags, {}),
     try(each.value.canary.tags, {}),
     {
-      synthetic_group_key  = each.value.group.name
-      synthetic_canary_key = each.value.canary.name
-      alarm_priority       = try(each.value.canary.alarms.priority, 4)
+      "synthetic-group-key"  = each.value.group.name
+      "synthetic-canary-key" = each.value.canary.name
+      "alarm-priority"       = try(each.value.canary.alarms.priority, 4)
     }
   )
   depends_on = [
