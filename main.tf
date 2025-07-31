@@ -123,8 +123,8 @@ resource "aws_synthetics_canary" "this" {
     try(each.value.group.tags, {}),
     try(each.value.canary.tags, {}),
     {
-      synthetic_group_key  = each.value.group.name,
-      synthetic_canary_key = each.value.canary.name
+      synthetic-group-key  = each.value.group.name,
+      synthetic-canary-key = each.value.canary.name
     }
   )
 }
