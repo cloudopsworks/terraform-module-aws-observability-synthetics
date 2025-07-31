@@ -123,10 +123,10 @@ resource "local_file" "script_custom_node" {
 }
 
 resource "terraform_data" "script_custom_node" {
-  for_each = local.python_synthetics_custom
+  for_each = local.nodejs_synthetics_custom
   input = {
     zip_file = local.zip_files_nodejs[each.key].zip_file_path
-    sha256   = local_file.script_custom_python[each.key].content_sha256
+    sha256   = local_file.script_custom_node[each.key].content_sha256
   }
   triggers_replace = [
     local_file.script_custom_node[each.key].content_sha256
@@ -139,7 +139,7 @@ resource "terraform_data" "script_custom_node" {
     command = "mv /tmp/${each.key}-custom.zip ${local.zip_files_nodejs[each.key].zip_file_path}"
   }
   depends_on = [
-    local_file.script_custom_python,
+    local_file.script_custom_node,
   ]
 }
 
