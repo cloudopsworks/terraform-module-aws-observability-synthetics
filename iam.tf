@@ -63,7 +63,7 @@ data "aws_iam_policy_document" "synthetic_policy" {
       "s3:PutObject",
     ]
     resources = [
-      "${var.create_artifacts_bucket ? module.synthetics_artifacts.s3_bucket_arn : data.aws_s3_bucket.artifacts[0].arn}/canary/${data.aws_region.current.id}/*",
+      "${var.create_artifacts_bucket ? module.synthetics_artifacts.s3_bucket_arn : data.aws_s3_bucket.artifacts[0].arn}/canary/${data.aws_region.current.region}/*",
       "${var.create_artifacts_bucket ? module.synthetics_artifacts.s3_bucket_arn : data.aws_s3_bucket.artifacts[0].arn}/upload/scripts/*",
     ]
   }
@@ -76,8 +76,8 @@ data "aws_iam_policy_document" "synthetic_policy" {
       "logs:PutLogEvents",
     ]
     resources = [
-      "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/cwsyn-*",
-      "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/cwsyn-*:*"
+      "arn:aws:logs:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/cwsyn-*",
+      "arn:aws:logs:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/cwsyn-*:*"
     ]
   }
   statement {
