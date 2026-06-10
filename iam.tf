@@ -1,5 +1,5 @@
 ##
-# (c) 2021-2025
+# (c) 2021-2026
 #     Cloud Ops Works LLC - https://cloudops.works/
 #     Find us on:
 #       GitHub: https://github.com/cloudopsworks
@@ -34,20 +34,37 @@ data "aws_iam_policy_document" "assume_role_policy" {
 data "aws_iam_policy_document" "synthetic_policy" {
   for_each = local.synth_groups
   statement {
-    sid    = "AllowS3Access"
+    sid    = "AllowS3ListBuckets"
+    effect = "Allow"
+    actions = [
+      "s3:ListAllMyBuckets",
+    ]
+    # ListAllMyBuckets (ListBuckets API) is an account-level action and must use "*"
+    resources = ["*"]
+  }
+  statement {
+    sid    = "AllowS3BucketAccess"
+    effect = "Allow"
+    actions = [
+      "s3:ListBucket",
+      "s3:GetBucketLocation",
+      "s3:GetBucketAcl",
+    ]
+    resources = [
+      var.create_artifacts_bucket ? module.synthetics_artifacts.s3_bucket_arn : data.aws_s3_bucket.artifacts[0].arn,
+    ]
+  }
+  statement {
+    sid    = "AllowS3ObjectAccess"
     effect = "Allow"
     actions = [
       "s3:GetObject",
       "s3:GetObjectVersion",
       "s3:PutObject",
-      "s3:ListBucket",
-      "s3:GetBucketLocation",
-      "s3:ListAllMyBuckets",
     ]
     resources = [
-      var.create_artifacts_bucket ? local.created_artifacts_bucket : data.aws_s3_bucket.artifacts[0].arn,
-      "${var.create_artifacts_bucket ? local.created_artifacts_bucket : data.aws_s3_bucket.artifacts[0].arn}/canary/${data.aws_region.current.id}/*",
-      "${var.create_artifacts_bucket ? local.created_artifacts_bucket : data.aws_s3_bucket.artifacts[0].arn}/upload/scripts/*"
+      "${var.create_artifacts_bucket ? module.synthetics_artifacts.s3_bucket_arn : data.aws_s3_bucket.artifacts[0].arn}/canary/${data.aws_region.current.id}/*",
+      "${var.create_artifacts_bucket ? module.synthetics_artifacts.s3_bucket_arn : data.aws_s3_bucket.artifacts[0].arn}/upload/scripts/*",
     ]
   }
   statement {
