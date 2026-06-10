@@ -11,27 +11,27 @@ locals {
   script_configuration_map = {
     URL = {
       handler         = "canary_handler.handler"
-      runtime_version = "syn-python-selenium-6.0"
+      runtime_version = "syn-python-selenium-11.0"
       is_custom       = false
     }
     SCRIPT = {
       handler         = "custom_handler.handler"
-      runtime_version = "syn-nodejs-puppeteer-10.0"
+      runtime_version = "syn-nodejs-puppeteer-16.0"
       is_custom       = true
     }
     API = {
       handler         = "canary_handler.handler"
-      runtime_version = "syn-nodejs-puppeteer-10.0"
+      runtime_version = "syn-nodejs-puppeteer-16.0"
       is_custom       = false
     }
     JSURL = {
       handler         = "canary_handler.handler"
-      runtime_version = "syn-nodejs-puppeteer-10.0"
+      runtime_version = "syn-nodejs-puppeteer-16.0"
       is_custom       = false
     }
     TRACEURL = {
       handler         = "trace_canary_handler.handler"
-      runtime_version = "syn-nodejs-puppeteer-10.0"
+      runtime_version = "syn-nodejs-puppeteer-16.0"
       is_custom       = false
     }
   }
