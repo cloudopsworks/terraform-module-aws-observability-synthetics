@@ -12,7 +12,7 @@
 
 # AWS Observability Synthetics Terraform Module
 
-
+ [![Latest Release](https://img.shields.io/github/release/cloudopsworks/terraform-module-aws-observability-synthetics.svg?style=for-the-badge)](https://github.com/cloudopsworks/terraform-module-aws-observability-synthetics/releases/latest) [![Last Updated](https://img.shields.io/github/last-commit/cloudopsworks/terraform-module-aws-observability-synthetics.svg?style=for-the-badge)](https://github.com/cloudopsworks/terraform-module-aws-observability-synthetics/commits)
 
 
 AWS Observability Synthetics Module for comprehensive monitoring and testing infrastructure. This module enables sophisticated management of AWS Synthetics canaries with advanced features including:
@@ -89,138 +89,202 @@ Observability Features:
 Instead pin to the release tag (e.g. `?ref=vX.Y.Z`) of one of our [latest releases](https://github.com/cloudopsworks/terraform-module-aws-observability-synthetics/releases).
 
 
-Configure canaries using YAML format in your Terraform/Terragrunt configuration:
+Bootstrap a new deployment using Terragrunt scaffold:
 
-# Terraform Configuration
-```yaml
-groups:
-  - name: "example-group"
-    tags:                # (optional) Tags for the group
-      Environment: "Production"
-    vpc:
-      enabled: true | false # (optional) Whether to enable VPC for the group, defaults to true
-    default_run_config:         # (optional) Default run configuration for the group
-      environment_variables: {} # (optional) Environment variables for the canary, defaults to empty map
-      timeout: 60               # (optional) Timeout in seconds for the canary, defaults to null
-      memory_mb: 128            # (optional) Memory in MB for the canary, defaults to null
-      tracing: true | false     # (optional) Whether to enable xray tracing, defaults to null
-    canaries:           # List of canaries in the group
-      - name: "example-canary"
-        description: "This is an example canary" # (optional) Description of the canary
-        enabled: true | false # (optional) Whether the canary is enabled, defaults to true
-        tags:            # (optional) Tags for the canary
-          Environment: "Production"
-        preserve_lambda: true | false # (optional) Whether to preserve the Lambda function after deletion, defaults to false
-        runtime_version: "syn-python-selenium-6.0"
-        schedule_expression: "rate(5 minutes)" # (optional) Schedule for the canary, defaults to "rate(5 minutes)" or cron expression "cron(0/5 * * * ? *)"
-        schedule_duration: 300 # (optional) Duration in seconds for the canary schedule, defaults to null
-        success_retention_period: 7 # (optional) Retention period in Days for successful runs, defaults to 1 Day
-        failure_retention_period: 7 # (optional) Retention period in Days for failed runs, defaults to 1 Day
-        requests_type: "URL" | "SCRIPT" | "API" # (required) Type of request, defaults to URL
-        request_script: |                      # (optional) Script for the canary, required if type is SCRIPT
-        requests:
-          - url: "https://example.com"    # (optional) URL for the canary, required if type is URL
-            script: "path/to/script.js"   # (optional) Path to the script for the canary, required if type is SCRIP
-            timeout: 30                   # (optional) Timeout in seconds for the request, defaults to 30 seconds
-            method: GET | POST | PUT | DELETE # (optional) HTTP method for the request, defaults to GET
-            headers:                     # (optional) Headers for the request, defaults to empty map
-              Content-Type: "application/json"
-            body: "request body"         # (optional) Body for the request, required if method is POST or PUT
-            assertions:                # (optional) Assertions for the canary, defaults to empty list
-              - type: STATUS_CODE # (required) Type of assertion, e.g., STATUS_CODE, RESPONSE_TIME, etc.
-                operator: EQUALS | NOT_EQUALS | GREATER_THAN | LESS_THAN # (required) Operator for the assertion
-                value: 200 # (required) Value for the assertion, e.g., expected status code
-            retry:
-              count: 3 # (optional) Number of retry attempts, defaults to 3
-              interval: 5 # (optional) Interval in seconds between retries, defaults to 5 seconds
-        run_config:
-          environment_variables: {} # (optional) Environment variables for the canary, defaults to empty map
-          timeout: 60               # (optional) Timeout in seconds for the canary, defaults to null
-          memory_mb: 128            # (optional) Memory in MB for the canary, defaults to null
-          tracing: true | false     # (optional) Whether to enable xray tracing, defaults to null
-        alarms:                  # (optional) Alarms configuration for the canary
-          enabled: true | false # (optional) Whether to create alarms for the canary, defaults to true
-          priority: 1           # (optional) Priority of the alarms, defaults to 4
-          description: "This alarm is triggered when the canary fails." # (optional) Description of the alarm, defaults to a generic message
-          evaluation_periods: "1" # (optional) Number of evaluation periods for the alarm, defaults to 1
-          period: "900"          # (optional) Period in seconds for the alarm, defaults to 900 seconds (15minutes)
-          threshold: "90"       # (optional) Threshold for the alarm, defaults to 90% SuccessPercent
-          metric: "SuccessPercent" | "Failure" | "Duration" # (optional) Metric for the alarm, defaults to "SuccessPercent"
-          condition: "GreaterThanOrEqualToThreshold" | "GreaterThanThreshold" | "LessThanThreshold" | "LessThanThreshold" # (optional) Condition for the alarm, defaults to "GreaterThanOrEqualToThreshold"
-          statistic: "Average" | "Sum" | "Minimum" | "Maximum" # (optional) Statistic for the alarm, defaults to "Average"
-          notifications: # (optional) Notification settings for the alarm
-            - sns_topic_name: "topic-name" # (optional) Name of the SNS topic for notifications
-            - sns_topic_arn: "topic-name" # (optional) ARN of the SNS topic for notifications
+```sh
+# 1. Create and enter the target deployment directory
+mkdir -p <environment>/<region>/<spoke>/synthetics
+cd <environment>/<region>/<spoke>/synthetics
+
+# 2. Scaffold the module (do NOT use --working-dir)
+terragrunt scaffold github.com/cloudopsworks/terraform-module-aws-observability-synthetics
+
+# 3. Edit inputs.yaml with deployment-specific values
+vi inputs.yaml
+
+# 4. Apply
+terragrunt apply
 ```
-# Terragrunt Configuration
-# terragrunt.hcl
+
+The scaffold command generates `terragrunt.hcl`, `inputs.yaml`, and `local-tags.json` in the current directory.
+
+### Generated `inputs.yaml`
+
+```yaml
+# Module configuration
+
+# vpc: (Required) VPC configuration for the Synthetics canaries
+vpc:
+  enabled: true             # (Optional) Enable VPC for canary execution, defaults to true
+  vpc_id: ""                # (Required) VPC ID to deploy canaries into
+  subnet_ids: []            # (Required) List of subnet IDs for canary execution
+  security_group_ids: []    # (Optional) Additional security group IDs, defaults to []
+
+# groups: (Optional) Canary groups and canaries configuration, defaults to []
+#groups:
+#  - name: ""                                     # (Required) Name of the canary group
+#    tags: {}                                     # (Optional) Additional tags for the group
+#    vpc:
+#      enabled: true                              # (Optional) Override VPC for group, defaults to true
+#    default_run_config:
+#      environment_variables: {}                  # (Optional) Environment variables, defaults to {}
+#      timeout: null                              # (Optional) Timeout in seconds, defaults to null
+#      memory_mb: null                            # (Optional) Memory in MB, defaults to null
+#      tracing: null                              # (Optional) Enable X-Ray tracing, defaults to null
+#    canaries:
+#      - name: ""                                 # (Required) Canary name (alphanumeric + hyphens)
+#        description: ""                          # (Optional) Canary description
+#        enabled: true                            # (Optional) Enable canary, defaults to true
+#        tags: {}                                 # (Optional) Additional tags for the canary
+#        preserve_lambda: false                   # (Optional) Preserve Lambda after deletion, defaults to false
+#        runtime_version: "syn-python-selenium-6.0" # (Required) AWS Synthetics runtime version
+#        schedule_expression: "rate(5 minutes)"  # (Optional) Schedule expression, defaults to "rate(5 minutes)"
+#        schedule_duration: null                  # (Optional) Duration in seconds for schedule, defaults to null
+#        success_retention_period: 1              # (Optional) Days to retain successful artifacts, defaults to 1
+#        failure_retention_period: 1              # (Optional) Days to retain failed artifacts, defaults to 1
+#        requests_type: "URL"                     # (Required) Request type: URL | SCRIPT | API | JSURL | TRACEURL
+#        request_script: ""                       # (Optional) Inline script content, required if requests_type is SCRIPT
+#        request_script_ref: ""                   # (Optional) Script reference name (from request_scripts)
+#        requests:
+#          - url: ""                              # (Required if requests_type is URL/API) Endpoint URL
+#            timeout: 30                          # (Optional) Request timeout in seconds, defaults to 30
+#            method: "GET"                        # (Optional) HTTP method: GET | POST | PUT | DELETE
+#            headers: {}                          # (Optional) Request headers, defaults to {}
+#            body: ""                             # (Optional) Request body, required if method is POST/PUT
+#            assertions:
+#              - type: "STATUS_CODE"              # (Required) Type: STATUS_CODE | RESPONSE_TIME
+#                operator: "EQUALS"               # (Required) Operator: EQUALS | NOT_EQUALS | GREATER_THAN | LESS_THAN
+#                value: 200                       # (Required) Expected value
+#            retry:
+#              count: 3                           # (Optional) Retry attempts, defaults to 3
+#              interval: 5                        # (Optional) Seconds between retries, defaults to 5
+#        run_config:
+#          environment_variables: {}              # (Optional) Environment variables, defaults to {}
+#          timeout: null                          # (Optional) Timeout in seconds, defaults to null
+#          memory_mb: null                        # (Optional) Memory in MB, defaults to null
+#          tracing: null                          # (Optional) Enable X-Ray tracing, defaults to null
+#        alarms:
+#          enabled: true                          # (Optional) Create alarms for canary, defaults to true
+#          priority: 4                            # (Optional) Alarm priority 1-5, defaults to 4
+#          description: ""                        # (Optional) Alarm description
+#          evaluation_periods: "1"               # (Optional) Evaluation periods, defaults to "1"
+#          period: "900"                         # (Optional) Period in seconds, defaults to "900" (15 min)
+#          threshold: "90"                       # (Optional) SuccessPercent threshold, defaults to "90"
+#          metric: "SuccessPercent"              # (Optional) Metric: SuccessPercent | Failed | Duration
+#          condition: "LessThanThreshold"        # (Optional) Alarm condition, defaults to "LessThanThreshold"
+#          statistic: "Average"                  # (Optional) Statistic: Average | Sum | Minimum | Maximum
+#          notifications:
+#            - sns_topic_name: ""               # (Optional) SNS topic name for notifications
+#            - sns_topic_arn: ""                # (Optional) SNS topic ARN for notifications
+
+# default_sns_topic_name: (Optional) Default SNS topic name for alarm notifications, defaults to ""
+#default_sns_topic_name: ""
+
+# create_alarms: (Optional) Create CloudWatch alarms for all canaries, defaults to true
+#create_alarms: true
+
+# alarms_defaults: (Optional) Default CloudWatch alarm settings applied to all canaries
+#alarms_defaults:
+#  enabled: true                              # (Optional) Enable alarms globally, defaults to true
+#  evaluation_periods: "1"                   # (Optional) Evaluation periods, defaults to "1"
+#  period: "900"                             # (Optional) Period in seconds, defaults to "900" (15 min)
+#  threshold: "90"                           # (Optional) Alarm threshold percentage, defaults to "90"
+#  metric: "SuccessPercent"                  # (Optional) Metric name, defaults to "SuccessPercent"
+#  condition: "LessThanThreshold"            # (Optional) Alarm condition, defaults to "LessThanThreshold"
+#  description: "This alarm is triggered when the canary fails."
+
+# request_scripts: (Optional) Reusable scripts referenced by canaries via request_script_ref, defaults to []
+#request_scripts:
+#  - name: ""                                # (Required) Script reference name
+#    content: |                              # (Required) Script content (Python/Node.js)
+#    runtime_version: ""                     # (Required) AWS Synthetics runtime version
+
+# artifacts_bucket: (Optional) S3 bucket ID for storing canary run artifacts, defaults to ""
+# Note: Auto-populated from dependency output when artifact_bucket_dependency=true at scaffold time
+#artifacts_bucket: ""
+
+# create_artifacts_bucket: (Optional) Create a dedicated S3 artifacts bucket, defaults to false
+# Note: Set to false automatically when artifact_bucket_dependency=true at scaffold time
+#create_artifacts_bucket: false
+```
+
+### Generated `terragrunt.hcl`
+
+```hcl
+locals {
+  local_vars  = yamldecode(file("./inputs.yaml"))
+  spoke_vars  = yamldecode(file(find_in_parent_folders("spoke-inputs.yaml")))
+  region_vars = yamldecode(file(find_in_parent_folders("region-inputs.yaml")))
+  env_vars    = yamldecode(file(find_in_parent_folders("env-inputs.yaml")))
+  global_vars = yamldecode(file(find_in_parent_folders("global-inputs.yaml")))
+
+  local_tags  = jsondecode(file("./local-tags.json"))
+  spoke_tags  = jsondecode(file(find_in_parent_folders("spoke-tags.json")))
+  region_tags = jsondecode(file(find_in_parent_folders("region-tags.json")))
+  env_tags    = jsondecode(file(find_in_parent_folders("env-tags.json")))
+  global_tags = jsondecode(file(find_in_parent_folders("global-tags.json")))
+
+  tags = merge(
+    local.global_tags,
+    local.env_tags,
+    local.region_tags,
+    local.spoke_tags,
+    local.local_tags
+  )
+}
+
 include "root" {
-  path = find_in_parent_folders()
+  path = find_in_parent_folders("root.hcl")
 }
 
 terraform {
-  source = "cloudopsworks/terraform-module-aws-observability-synthetics//."
+  source = "github.com/cloudopsworks/terraform-module-aws-observability-synthetics//.?ref=<TAG>"
 }
 
 inputs = {
-  create_artifacts_bucket = true
-  artifacts_bucket       = "my-synthetics-artifacts"
-  default_sns_topic_name = "monitoring-alerts"
-
-  vpc = {
-    vpc_id     = dependency.vpc.outputs.vpc_id
-    subnet_ids = dependency.vpc.outputs.private_subnets
-  }
-
-  groups = [
-    {
-      name = "api-monitoring"
-      canaries = [
-        {
-          name = "api-health"
-          # ... canary configuration ...
-        }
-      ]
-    }
-  ]
+  is_hub    = false
+  org       = local.env_vars.org
+  spoke_def = local.spoke_vars.spoke
+  vpc                     = local.local_vars.vpc
+  groups                  = try(local.local_vars.groups, [])
+  default_sns_topic_name  = try(local.local_vars.default_sns_topic_name, "")
+  create_alarms           = try(local.local_vars.create_alarms, true)
+  alarms_defaults         = try(local.local_vars.alarms_defaults, {})
+  request_scripts         = try(local.local_vars.request_scripts, [])
+  artifacts_bucket        = try(local.local_vars.artifacts_bucket, "")
+  create_artifacts_bucket = try(local.local_vars.create_artifacts_bucket, false)
+  extra_tags = local.tags
 }
+```
+
+When scaffolding with `artifact_bucket_dependency=true`, a `dependency "artifact_bucket"` block is
+added and `artifacts_bucket` / `create_artifacts_bucket` are wired to the dependency outputs automatically.
 
 ## Quick Start
 
 1. Prepare your AWS environment:
    - Ensure AWS credentials are configured
-   - Create or identify target VPC and subnets
-   - Prepare SNS topics for notifications (optional)
+   - Identify target VPC, subnets, and security groups
+   - Prepare SNS topics for alarm notifications (optional)
 
-2. Create Terragrunt configuration (terragrunt.hcl):
-   ```hcl
-   include "root" {
-     path = find_in_parent_folders()
-   }
-
-   terraform {
-     source = "cloudopsworks/terraform-module-aws-observability-synthetics//."
-   }
-
-   inputs = {
-     create_artifacts_bucket = true
-     artifacts_bucket = "my-synthetics-artifacts"
-     default_sns_topic_name = "monitoring-alerts"
-
-     vpc = {
-       enabled = true
-       vpc_id = dependency.vpc.outputs.vpc_id
-       subnet_ids = dependency.vpc.outputs.private_subnets
-     }
-   }
+2. Scaffold the deployment directory:
+   ```bash
+   mkdir -p production/us-east-1/main/synthetics
+   cd production/us-east-1/main/synthetics
+   terragrunt scaffold github.com/cloudopsworks/terraform-module-aws-observability-synthetics
    ```
 
-3. Define your monitoring groups in a YAML file:
+3. Edit `inputs.yaml` with your deployment values:
    ```yaml
+   vpc:
+     enabled: true
+     vpc_id: "vpc-0abc123def456"
+     subnet_ids:
+       - "subnet-0abc123"
+       - "subnet-0def456"
+
    groups:
      - name: "api-monitoring"
-       tags:
-         Environment: "Production"
        canaries:
          - name: "api-health"
            runtime_version: "syn-python-selenium-6.0"
@@ -232,6 +296,10 @@ inputs = {
                  - type: "STATUS_CODE"
                    operator: "EQUALS"
                    value: 200
+
+   create_alarms: true
+   default_sns_topic_name: "monitoring-alerts"
+   create_artifacts_bucket: true
    ```
 
 4. Apply configuration:
@@ -242,47 +310,9 @@ inputs = {
    ```
 
 5. Verify deployment:
-   - Check AWS Synthetics console
-   - Monitor CloudWatch metrics
-   - Test notifications
-
-2. Create Terraform/Terragrunt configuration:
-   ```hcl
-   module "synthetics" {
-     source = "cloudopsworks/terraform-module-aws-observability-synthetics"
-     version = "1.0.0"
-
-     create_artifacts_bucket = true
-     artifacts_bucket = "my-synthetics-artifacts"
-
-     vpc = {
-       vpc_id = "vpc-12345"
-       subnet_ids = ["subnet-abc123"]
-     }
-   }
-   ```
-
-3. Define monitoring groups and canaries in YAML:
-   ```yaml
-   groups:
-     - name: "api-monitoring"
-       canaries:
-         - name: "health-check"
-           runtime_version: "syn-python-selenium-6.0"
-           schedule_expression: "rate(5 minutes)"
-   ```
-
-4. Apply configuration:
-   ```bash
-   terraform init
-   terraform plan
-   terraform apply
-   ```
-
-5. Monitor results:
-   - Check AWS Synthetics dashboard
-   - View CloudWatch metrics
-   - Configure additional alarms as needed
+   - Check AWS Synthetics console for canary status
+   - Monitor CloudWatch metrics and alarms
+   - Confirm SNS notifications are delivered
 
 
 ## Examples
@@ -458,7 +488,7 @@ Please use the [issue tracker](https://github.com/cloudopsworks/terraform-module
 
 ## Copyrights
 
-Copyright © 2024-2025-2026 [Cloud Ops Works LLC](https://cloudops.works)
+Copyright © 2024-2026 [Cloud Ops Works LLC](https://cloudops.works)
 
 
 

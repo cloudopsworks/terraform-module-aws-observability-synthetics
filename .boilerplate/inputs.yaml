@@ -1,18 +1,95 @@
 # Module configuration
-# Required variables
-{{- range .requiredVariables }}
-{{- if ne .Name "org"}}
-# Description {{ .Description }} , Type: {{ .Type }}
-{{ .Name }}: {{ .DefaultValuePlaceholder }}
-{{- end }}
 
-{{- end }}
-# Optional variables
-{{- range .optionalVariables }}
-{{- if ne .Name "is_hub" "spoke_def" "extra_args" }}
-# Description {{ .Description }} , Type: {{ .Type }}
-#{{ .Name }}: {{ .DefaultValue }}
-{{- end }}
+# vpc: (Required) VPC configuration for the Synthetics canaries
+vpc:
+  enabled: true             # (Optional) Enable VPC for canary execution, defaults to true
+  vpc_id: ""                # (Required) VPC ID to deploy canaries into
+  subnet_ids: []            # (Required) List of subnet IDs for canary execution
+  security_group_ids: []    # (Optional) Additional security group IDs, defaults to []
 
-{{- end }}
+# groups: (Optional) Canary groups and canaries configuration, defaults to []
+#groups:
+#  - name: ""                                     # (Required) Name of the canary group
+#    tags: {}                                     # (Optional) Additional tags for the group
+#    vpc:
+#      enabled: true                              # (Optional) Override VPC for group, defaults to true
+#    default_run_config:
+#      environment_variables: {}                  # (Optional) Environment variables, defaults to {}
+#      timeout: null                              # (Optional) Timeout in seconds, defaults to null
+#      memory_mb: null                            # (Optional) Memory in MB, defaults to null
+#      tracing: null                              # (Optional) Enable X-Ray tracing, defaults to null
+#    canaries:
+#      - name: ""                                 # (Required) Canary name (alphanumeric + hyphens)
+#        description: ""                          # (Optional) Canary description
+#        enabled: true                            # (Optional) Enable canary, defaults to true
+#        tags: {}                                 # (Optional) Additional tags for the canary
+#        preserve_lambda: false                   # (Optional) Preserve Lambda after deletion, defaults to false
+#        runtime_version: "syn-python-selenium-6.0" # (Required) AWS Synthetics runtime version
+#        schedule_expression: "rate(5 minutes)"  # (Optional) CloudWatch schedule expression, defaults to "rate(5 minutes)"
+#        schedule_duration: null                  # (Optional) Duration in seconds for schedule, defaults to null
+#        success_retention_period: 1              # (Optional) Days to retain successful run artifacts, defaults to 1
+#        failure_retention_period: 1              # (Optional) Days to retain failed run artifacts, defaults to 1
+#        requests_type: "URL"                     # (Required) Request type: URL | SCRIPT | API | JSURL | TRACEURL
+#        request_script: ""                       # (Optional) Inline script content, required if requests_type is SCRIPT
+#        request_script_ref: ""                   # (Optional) Script name reference (from request_scripts var), alternative to request_script
+#        requests:
+#          - url: ""                              # (Required if requests_type is URL/API) Endpoint URL
+#            timeout: 30                          # (Optional) Request timeout in seconds, defaults to 30
+#            method: "GET"                        # (Optional) HTTP method: GET | POST | PUT | DELETE, defaults to GET
+#            headers: {}                          # (Optional) Request headers, defaults to {}
+#            body: ""                             # (Optional) Request body, required if method is POST/PUT
+#            assertions:
+#              - type: "STATUS_CODE"              # (Required) Assertion type: STATUS_CODE | RESPONSE_TIME
+#                operator: "EQUALS"               # (Required) Operator: EQUALS | NOT_EQUALS | GREATER_THAN | LESS_THAN
+#                value: 200                       # (Required) Expected value
+#            retry:
+#              count: 3                           # (Optional) Retry attempts, defaults to 3
+#              interval: 5                        # (Optional) Seconds between retries, defaults to 5
+#        run_config:
+#          environment_variables: {}              # (Optional) Environment variables, defaults to {}
+#          timeout: null                          # (Optional) Timeout in seconds, defaults to null
+#          memory_mb: null                        # (Optional) Memory in MB, defaults to null
+#          tracing: null                          # (Optional) Enable X-Ray tracing, defaults to null
+#        alarms:
+#          enabled: true                          # (Optional) Create alarms for canary, defaults to true
+#          priority: 4                            # (Optional) Alarm priority 1-5, defaults to 4
+#          description: ""                        # (Optional) Alarm description
+#          evaluation_periods: "1"               # (Optional) Evaluation periods, defaults to "1"
+#          period: "900"                         # (Optional) Period in seconds, defaults to "900" (15 min)
+#          threshold: "90"                       # (Optional) SuccessPercent threshold, defaults to "90"
+#          metric: "SuccessPercent"              # (Optional) CloudWatch metric: SuccessPercent | Failed | Duration
+#          condition: "LessThanThreshold"        # (Optional) Alarm condition, defaults to "LessThanThreshold"
+#          statistic: "Average"                  # (Optional) Statistic: Average | Sum | Minimum | Maximum
+#          notifications:
+#            - sns_topic_name: ""               # (Optional) SNS topic name for notifications
+#            - sns_topic_arn: ""                # (Optional) SNS topic ARN for notifications
 
+# default_sns_topic_name: (Optional) Default SNS topic name for alarm notifications, defaults to ""
+#default_sns_topic_name: ""
+
+# create_alarms: (Optional) Create CloudWatch alarms for all Synthetics canaries, defaults to true
+#create_alarms: true
+
+# alarms_defaults: (Optional) Default CloudWatch alarm settings applied to all canaries
+#alarms_defaults:
+#  enabled: true                              # (Optional) Enable alarms globally, defaults to true
+#  evaluation_periods: "1"                   # (Optional) Evaluation periods, defaults to "1"
+#  period: "900"                             # (Optional) Period in seconds, defaults to "900" (15 min)
+#  threshold: "90"                           # (Optional) Alarm threshold percentage, defaults to "90"
+#  metric: "SuccessPercent"                  # (Optional) Metric name, defaults to "SuccessPercent"
+#  condition: "LessThanThreshold"            # (Optional) Alarm condition, defaults to "LessThanThreshold"
+#  description: "This alarm is triggered when the canary fails." # (Optional) Default alarm description
+
+# request_scripts: (Optional) Reusable script definitions referenced by canaries via request_script_ref, defaults to []
+#request_scripts:
+#  - name: ""                                # (Required) Script reference name
+#    content: |                              # (Required) Script content (Python/Node.js)
+#    runtime_version: ""                     # (Required) AWS Synthetics runtime version (e.g., syn-python-selenium-6.0)
+
+# artifacts_bucket: (Optional) S3 bucket ID for storing canary run artifacts, defaults to ""
+# Note: Auto-populated from dependency output when artifact_bucket_dependency=true at scaffold time
+#artifacts_bucket: ""
+
+# create_artifacts_bucket: (Optional) Create a dedicated S3 bucket for artifacts, defaults to false
+# Note: Set to false automatically when artifact_bucket_dependency=true at scaffold time
+#create_artifacts_bucket: false
