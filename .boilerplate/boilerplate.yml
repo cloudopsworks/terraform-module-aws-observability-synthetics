@@ -14,22 +14,26 @@ variables:
     description: "Is this a hub configuration?"
     type: bool
     default: false
+    confirm: true
   - name: tags
     order: 1
     description: "Tags"
     type: map
     default: {}
+    confirm: true
   # End - Generic Boilerplate Variables Setup
   - name: artifact_bucket_dependency
     order: 2
     description: "Dependency reference for the artifact bucket module output."
     type: bool
     default: false
+    confirm: true
   - name: artifact_bucket_path
     order: 3
     description: "Path to the artifact bucket module output in the dependency configuration."
     type: string
-    default: ""
+    default: "../bucket"
+    confirm: true
 
 hooks:
   after:
