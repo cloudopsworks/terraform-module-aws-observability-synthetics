@@ -1,5 +1,5 @@
 ##
-# (c) 2021-2025
+# (c) 2021-2026
 #     Cloud Ops Works LLC - https://cloudops.works/
 #     Find us on:
 #       GitHub: https://github.com/cloudopsworks
@@ -26,14 +26,20 @@
 #         tags:            # (optional) Tags for the canary
 #           Environment: "Production"
 #         preserve_lambda: true | false # (optional) Whether to preserve the Lambda function after deletion, defaults to false
-#         runtime_version: "syn-python-selenium-6.0"
+#         runtime_version: ""           # (optional) AWS Synthetics runtime version; defaults by requests_type:
+#                                       #   URL      → syn-python-selenium-6.0  (handler: canary_handler.handler)
+#                                       #   API      → syn-nodejs-puppeteer-10.0 (handler: canary_handler.handler)
+#                                       #   JSURL    → syn-nodejs-puppeteer-10.0 (handler: canary_handler.handler)
+#                                       #   TRACEURL → syn-nodejs-puppeteer-10.0 (handler: trace_canary_handler.handler)
+#                                       #   SCRIPT   → syn-nodejs-puppeteer-10.0 (handler: custom_handler.handler)
+#         handler: ""                   # (optional) Override the canary handler function; defaults per requests_type above
 #         schedule_expression: "rate(5 minutes)" # (optional) Schedule for the canary, defaults to "rate(5 minutes)" or cron expression "cron(0/5 * * * ? *)"
 #         schedule_duration: 300 # (optional) Duration in seconds for the canary schedule, defaults to null
 #         success_retention_period: 7 # (optional) Retention period in Days for successful runs, defaults to 1 Day
 #         failure_retention_period: 7 # (optional) Retention period in Days for failed runs, defaults to 1 Day
 #         requests_type: "URL" | "SCRIPT" | "API" | "JSURL" | "TRACEURL" # (required) Type of request, defaults to URL
 #         request_script: |                      # (optional) Script for the canary, required if type is SCRIPT
-#         request_script_ref: "script-name" # (optional) Reference to the script for the canary, required if type is SCRIPT and request_script is not provided
+#         request_script_ref: "script-name" # (optional) Reference to a script defined in request_scripts; when set, runtime_version and handler are inherited from the referenced script
 #         requests:
 #           - url: "https://example.com"    # (optional) URL for the canary, required if type is URL
 #             script: "path/to/script.js"   # (optional) Path to the script for the canary, required if type is SCRIPT

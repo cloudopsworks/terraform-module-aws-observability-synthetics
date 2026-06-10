@@ -137,14 +137,22 @@ vpc:
 #        enabled: true                            # (Optional) Enable canary, defaults to true
 #        tags: {}                                 # (Optional) Additional tags for the canary
 #        preserve_lambda: false                   # (Optional) Preserve Lambda after deletion, defaults to false
-#        runtime_version: "syn-python-selenium-6.0" # (Required) AWS Synthetics runtime version
+#        runtime_version: ""                      # (Optional) AWS Synthetics runtime version. Defaults by requests_type:
+#                                                 #   URL      → syn-python-selenium-6.0  (handler: canary_handler.handler)
+#                                                 #   API      → syn-nodejs-puppeteer-10.0 (handler: canary_handler.handler)
+#                                                 #   JSURL    → syn-nodejs-puppeteer-10.0 (handler: canary_handler.handler)
+#                                                 #   TRACEURL → syn-nodejs-puppeteer-10.0 (handler: trace_canary_handler.handler)
+#                                                 #   SCRIPT   → syn-nodejs-puppeteer-10.0 (handler: custom_handler.handler)
+#                                                 # Override only when targeting a specific runtime version.
+#        handler: ""                              # (Optional) Override the canary handler function. Defaults per requests_type above.
 #        schedule_expression: "rate(5 minutes)"  # (Optional) Schedule expression, defaults to "rate(5 minutes)"
 #        schedule_duration: null                  # (Optional) Duration in seconds for schedule, defaults to null
 #        success_retention_period: 1              # (Optional) Days to retain successful artifacts, defaults to 1
 #        failure_retention_period: 1              # (Optional) Days to retain failed artifacts, defaults to 1
 #        requests_type: "URL"                     # (Required) Request type: URL | SCRIPT | API | JSURL | TRACEURL
 #        request_script: ""                       # (Optional) Inline script content, required if requests_type is SCRIPT
-#        request_script_ref: ""                   # (Optional) Script reference name (from request_scripts)
+#        request_script_ref: ""                   # (Optional) Script reference name (from request_scripts).
+#                                                 #   When set, runtime_version and handler are inherited from the referenced script.
 #        requests:
 #          - url: ""                              # (Required if requests_type is URL/API) Endpoint URL
 #            timeout: 30                          # (Optional) Request timeout in seconds, defaults to 30
@@ -193,11 +201,13 @@ vpc:
 #  condition: "LessThanThreshold"            # (Optional) Alarm condition, defaults to "LessThanThreshold"
 #  description: "This alarm is triggered when the canary fails."
 
-# request_scripts: (Optional) Reusable scripts referenced by canaries via request_script_ref, defaults to []
+# request_scripts: (Optional) Reusable script definitions referenced by canaries via request_script_ref, defaults to []
 #request_scripts:
-#  - name: ""                                # (Required) Script reference name
+#  - name: ""                                # (Required) Script reference name, used in canary.request_script_ref
 #    content: |                              # (Required) Script content (Python/Node.js)
-#    runtime_version: ""                     # (Required) AWS Synthetics runtime version
+#    runtime_version: ""                     # (Required) AWS Synthetics runtime version for this script
+#                                            #   e.g., syn-python-selenium-6.0 or syn-nodejs-puppeteer-10.0
+#    handler: ""                             # (Optional) Handler function name, defaults to custom_handler.handler
 
 # artifacts_bucket: (Optional) S3 bucket ID for storing canary run artifacts, defaults to ""
 # Note: Auto-populated from dependency output when artifact_bucket_dependency=true at scaffold time
@@ -376,7 +386,7 @@ Available targets:
 |------|---------|
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.3 |
 | <a name="requirement_archive"></a> [archive](#requirement\_archive) | ~> 2.7 |
-| <a name="requirement_aws"></a> [aws](#requirement\_aws) | ~> 6.4 |
+| <a name="requirement_aws"></a> [aws](#requirement\_aws) | ~> 6.35 |
 | <a name="requirement_local"></a> [local](#requirement\_local) | ~> 2.5 |
 | <a name="requirement_null"></a> [null](#requirement\_null) | ~> 3.2 |
 | <a name="requirement_random"></a> [random](#requirement\_random) | ~> 3.5 |
@@ -385,10 +395,10 @@ Available targets:
 
 | Name | Version |
 |------|---------|
-| <a name="provider_aws"></a> [aws](#provider\_aws) | ~> 6.4 |
-| <a name="provider_local"></a> [local](#provider\_local) | ~> 2.5 |
-| <a name="provider_null"></a> [null](#provider\_null) | ~> 3.2 |
-| <a name="provider_random"></a> [random](#provider\_random) | ~> 3.5 |
+| <a name="provider_aws"></a> [aws](#provider\_aws) | 6.49.0 |
+| <a name="provider_local"></a> [local](#provider\_local) | 2.9.0 |
+| <a name="provider_null"></a> [null](#provider\_null) | 3.3.0 |
+| <a name="provider_random"></a> [random](#provider\_random) | 3.9.0 |
 | <a name="provider_terraform"></a> [terraform](#provider\_terraform) | n/a |
 
 ## Modules
