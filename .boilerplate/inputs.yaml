@@ -6,6 +6,21 @@ vpc:
   vpc_id: ""                # (Required) VPC ID to deploy canaries into
   subnet_ids: []            # (Required) List of subnet IDs for canary execution
   security_group_ids: []    # (Optional) Additional security group IDs, defaults to []
+  ipv6_allowed_for_dual_stack: null # (Optional) Allow IPv6 for dual-stack VPC canaries, defaults to null/provider default
+
+# canary_defaults: (Optional) Module-level defaults for canary provider options and request validation
+#canary_defaults:
+#  validation_mode: null                       # (Optional) Validation mode: legacy | strict. Defaults by requests_type alias.
+#  artifact_config:
+#    s3_encryption:
+#      encryption_mode: null                   # (Optional) Artifact encryption mode: SSE_S3 | SSE_KMS, defaults to provider default
+#      kms_key_arn: null                       # (Optional) KMS key ARN when encryption_mode is SSE_KMS, defaults to null
+#  run_config:
+#    ephemeral_storage_mb: null                # (Optional) Ephemeral storage in MB, minimum 1024, defaults to provider default
+#  schedule_retry:
+#    max_retries: null                         # (Optional) Max schedule retry attempts, defaults to provider default
+#  vpc:
+#    ipv6_allowed_for_dual_stack: null         # (Optional) Allow IPv6 for dual-stack VPC canaries, defaults to null/provider default
 
 # groups: (Optional) Canary groups and canaries configuration, defaults to []
 #groups:
@@ -13,11 +28,20 @@ vpc:
 #    tags: {}                                     # (Optional) Additional tags for the group
 #    vpc:
 #      enabled: true                              # (Optional) Override VPC for group, defaults to true
+#      ipv6_allowed_for_dual_stack: null          # (Optional) Allow IPv6 for dual-stack canaries in this group, defaults to module VPC setting
+#    default_artifact_config:
+#      s3_encryption:
+#        encryption_mode: null                    # (Optional) Artifact encryption mode: SSE_S3 | SSE_KMS, defaults to module/provider default
+#        kms_key_arn: null                        # (Optional) KMS key ARN when encryption_mode is SSE_KMS, defaults to null
 #    default_run_config:
 #      environment_variables: {}                  # (Optional) Environment variables, defaults to {}
 #      timeout: null                              # (Optional) Timeout in seconds, defaults to null
 #      memory_mb: null                            # (Optional) Memory in MB, defaults to null
 #      tracing: null                              # (Optional) Enable X-Ray tracing, defaults to null
+#      ephemeral_storage_mb: null                 # (Optional) Ephemeral storage in MB, minimum 1024, defaults to module/provider default
+#    default_schedule_retry:
+#      max_retries: null                          # (Optional) Max schedule retry attempts, defaults to module/provider default
+#    validation_mode: null                        # (Optional) Validation mode: legacy | strict. Defaults by requests_type alias.
 #    canaries:
 #      - name: ""                                 # (Required) Canary name (alphanumeric + hyphens)
 #        description: ""                          # (Optional) Canary description
@@ -25,18 +49,25 @@ vpc:
 #        tags: {}                                 # (Optional) Additional tags for the canary
 #        preserve_lambda: false                   # (Optional) Preserve Lambda after deletion, defaults to false
 #        runtime_version: ""                      # (Optional) AWS Synthetics runtime version. Defaults by requests_type:
-#                                                 #   URL      → syn-python-selenium-6.0  (handler: canary_handler.handler)
-#                                                 #   API      → syn-nodejs-puppeteer-10.0 (handler: canary_handler.handler)
-#                                                 #   JSURL    → syn-nodejs-puppeteer-10.0 (handler: canary_handler.handler)
-#                                                 #   TRACEURL → syn-nodejs-puppeteer-10.0 (handler: trace_canary_handler.handler)
-#                                                 #   SCRIPT   → syn-nodejs-puppeteer-10.0 (handler: custom_handler.handler)
+#                                                 #   URL      → syn-python-selenium-11.0  (handler: canary_handler.handler)
+#                                                 #   API      → syn-nodejs-puppeteer-16.0 (handler: canary_handler.handler)
+#                                                 #   JSURL    → syn-nodejs-puppeteer-16.0 (handler: canary_handler.handler)
+#                                                 #   TRACEURL → syn-nodejs-puppeteer-16.0 (handler: trace_canary_handler.handler)
+#                                                 #   SCRIPT   → syn-nodejs-puppeteer-16.0 (handler: custom_handler.handler)
 #                                                 # Override only when targeting a specific runtime version.
 #        handler: ""                              # (Optional) Override the canary handler function. Defaults per requests_type above.
+#        validation_mode: null                    # (Optional) Validation mode: legacy | strict. Defaults by requests_type alias.
+#        artifact_config:
+#          s3_encryption:
+#            encryption_mode: null                # (Optional) Artifact encryption mode: SSE_S3 | SSE_KMS, defaults to group/module/provider default
+#            kms_key_arn: null                    # (Optional) KMS key ARN when encryption_mode is SSE_KMS, defaults to null
 #        schedule_expression: "rate(5 minutes)"  # (Optional) CloudWatch schedule expression, defaults to "rate(5 minutes)"
 #        schedule_duration: null                  # (Optional) Duration in seconds for schedule, defaults to null
+#        schedule_retry:
+#          max_retries: null                      # (Optional) Max schedule retry attempts, defaults to group/module/provider default
 #        success_retention_period: 1              # (Optional) Days to retain successful run artifacts, defaults to 1
 #        failure_retention_period: 1              # (Optional) Days to retain failed run artifacts, defaults to 1
-#        requests_type: "URL"                     # (Required) Request type: URL | SCRIPT | API | JSURL | TRACEURL
+#        requests_type: "URL"                     # (Required) Request type: URL | SCRIPT | API | JSURL | TRACEURL | HTTP | HTTP_API | BROWSER_URL | BROWSER_SCRIPT
 #        request_script: ""                       # (Optional) Inline script content, required if requests_type is SCRIPT
 #        request_script_ref: ""                   # (Optional) Script name reference (from request_scripts var), alternative to request_script.
 #                                                 #   When set, runtime_version and handler are inherited from the referenced script definition.
@@ -58,6 +89,7 @@ vpc:
 #          timeout: null                          # (Optional) Timeout in seconds, defaults to null
 #          memory_mb: null                        # (Optional) Memory in MB, defaults to null
 #          tracing: null                          # (Optional) Enable X-Ray tracing, defaults to null
+#          ephemeral_storage_mb: null             # (Optional) Ephemeral storage in MB, minimum 1024, defaults to group/module/provider default
 #        alarms:
 #          enabled: true                          # (Optional) Create alarms for canary, defaults to true
 #          priority: 4                            # (Optional) Alarm priority 1-5, defaults to 4
@@ -93,8 +125,14 @@ vpc:
 #  - name: ""                                # (Required) Script reference name, used in canary.request_script_ref
 #    content: |                              # (Required) Script content (Python/Node.js)
 #    runtime_version: ""                     # (Required) AWS Synthetics runtime version for this script
-#                                            #   e.g., syn-python-selenium-6.0 or syn-nodejs-puppeteer-10.0
+#                                            #   e.g., syn-python-selenium-11.0 or syn-nodejs-puppeteer-16.0
 #    handler: ""                             # (Optional) Handler function name, defaults to custom_handler.handler
+
+# artifact_output_prefix: (Optional) Prefix under the artifacts bucket for canary run artifacts, defaults to bucket root
+#artifact_output_prefix: ""
+
+# code_package_prefix: (Optional) Prefix under the artifacts bucket for uploaded canary code packages, defaults to "upload/scripts"
+#code_package_prefix: "upload/scripts"
 
 # artifacts_bucket: (Optional) S3 bucket ID for storing canary run artifacts, defaults to ""
 # Note: Auto-populated from dependency output when artifact_bucket_dependency=true at scaffold time

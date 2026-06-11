@@ -22,7 +22,9 @@ AWS Observability Synthetics Module for comprehensive monitoring and testing inf
 - CloudWatch metrics integration and alarm management
 - SNS notifications with priority-based routing
 - Artifact management with S3 bucket integration
+- Artifact encryption, package prefix, and run artifact prefix controls
 - Flexible scheduling with cron and rate expressions
+- Schedule retry and runtime ephemeral storage configuration
 - Environment variable configuration for runtime parameters
 - Organized canary grouping for logical separation
 - Customizable retention policies for test artifacts
@@ -61,6 +63,7 @@ Core Features:
 - Organized canary groups with logical separation and tagging
 - VPC-based execution with automated security group management
 - Flexible scheduling using cron or rate expressions
+- Schedule retry configuration for provider-supported retry behavior
 - Configurable retention policies for artifacts and results
 
 Monitoring Capabilities:
@@ -80,6 +83,7 @@ Observability Features:
 - Priority-based alarms (P1-P5)
 - Multiple SNS topic support
 - Custom S3 artifact storage
+- S3 artifact encryption and prefix separation for code packages and run artifacts
 - Environment variable configuration
 
 ## Usage
@@ -119,6 +123,21 @@ vpc:
   vpc_id: ""                # (Required) VPC ID to deploy canaries into
   subnet_ids: []            # (Required) List of subnet IDs for canary execution
   security_group_ids: []    # (Optional) Additional security group IDs, defaults to []
+  ipv6_allowed_for_dual_stack: null # (Optional) Allow IPv6 for dual-stack VPC canaries, defaults to null/provider default
+
+# canary_defaults: (Optional) Module-level defaults for canary provider options and request validation
+#canary_defaults:
+#  validation_mode: null                       # (Optional) Validation mode: legacy | strict. Defaults by requests_type alias.
+#  artifact_config:
+#    s3_encryption:
+#      encryption_mode: null                   # (Optional) Artifact encryption mode: SSE_S3 | SSE_KMS, defaults to provider default
+#      kms_key_arn: null                       # (Optional) KMS key ARN when encryption_mode is SSE_KMS, defaults to null
+#  run_config:
+#    ephemeral_storage_mb: null                # (Optional) Ephemeral storage in MB, minimum 1024, defaults to provider default
+#  schedule_retry:
+#    max_retries: null                         # (Optional) Max schedule retry attempts, defaults to provider default
+#  vpc:
+#    ipv6_allowed_for_dual_stack: null         # (Optional) Allow IPv6 for dual-stack VPC canaries, defaults to null/provider default
 
 # groups: (Optional) Canary groups and canaries configuration, defaults to []
 #groups:
@@ -126,11 +145,20 @@ vpc:
 #    tags: {}                                     # (Optional) Additional tags for the group
 #    vpc:
 #      enabled: true                              # (Optional) Override VPC for group, defaults to true
+#      ipv6_allowed_for_dual_stack: null          # (Optional) Allow IPv6 for dual-stack canaries in this group, defaults to module VPC setting
+#    default_artifact_config:
+#      s3_encryption:
+#        encryption_mode: null                    # (Optional) Artifact encryption mode: SSE_S3 | SSE_KMS, defaults to module/provider default
+#        kms_key_arn: null                        # (Optional) KMS key ARN when encryption_mode is SSE_KMS, defaults to null
 #    default_run_config:
 #      environment_variables: {}                  # (Optional) Environment variables, defaults to {}
 #      timeout: null                              # (Optional) Timeout in seconds, defaults to null
 #      memory_mb: null                            # (Optional) Memory in MB, defaults to null
 #      tracing: null                              # (Optional) Enable X-Ray tracing, defaults to null
+#      ephemeral_storage_mb: null                 # (Optional) Ephemeral storage in MB, minimum 1024, defaults to module/provider default
+#    default_schedule_retry:
+#      max_retries: null                          # (Optional) Max schedule retry attempts, defaults to module/provider default
+#    validation_mode: null                        # (Optional) Validation mode: legacy | strict. Defaults by requests_type alias.
 #    canaries:
 #      - name: ""                                 # (Required) Canary name (alphanumeric + hyphens)
 #        description: ""                          # (Optional) Canary description
@@ -138,29 +166,36 @@ vpc:
 #        tags: {}                                 # (Optional) Additional tags for the canary
 #        preserve_lambda: false                   # (Optional) Preserve Lambda after deletion, defaults to false
 #        runtime_version: ""                      # (Optional) AWS Synthetics runtime version. Defaults by requests_type:
-#                                                 #   URL      → syn-python-selenium-6.0  (handler: canary_handler.handler)
-#                                                 #   API      → syn-nodejs-puppeteer-10.0 (handler: canary_handler.handler)
-#                                                 #   JSURL    → syn-nodejs-puppeteer-10.0 (handler: canary_handler.handler)
-#                                                 #   TRACEURL → syn-nodejs-puppeteer-10.0 (handler: trace_canary_handler.handler)
-#                                                 #   SCRIPT   → syn-nodejs-puppeteer-10.0 (handler: custom_handler.handler)
+#                                                 #   URL      → syn-python-selenium-11.0  (handler: canary_handler.handler)
+#                                                 #   API      → syn-nodejs-puppeteer-16.0 (handler: canary_handler.handler)
+#                                                 #   JSURL    → syn-nodejs-puppeteer-16.0 (handler: canary_handler.handler)
+#                                                 #   TRACEURL → syn-nodejs-puppeteer-16.0 (handler: trace_canary_handler.handler)
+#                                                 #   SCRIPT   → syn-nodejs-puppeteer-16.0 (handler: custom_handler.handler)
 #                                                 # Override only when targeting a specific runtime version.
 #        handler: ""                              # (Optional) Override the canary handler function. Defaults per requests_type above.
-#        schedule_expression: "rate(5 minutes)"  # (Optional) Schedule expression, defaults to "rate(5 minutes)"
+#        validation_mode: null                    # (Optional) Validation mode: legacy | strict. Defaults by requests_type alias.
+#        artifact_config:
+#          s3_encryption:
+#            encryption_mode: null                # (Optional) Artifact encryption mode: SSE_S3 | SSE_KMS, defaults to group/module/provider default
+#            kms_key_arn: null                    # (Optional) KMS key ARN when encryption_mode is SSE_KMS, defaults to null
+#        schedule_expression: "rate(5 minutes)"  # (Optional) CloudWatch schedule expression, defaults to "rate(5 minutes)"
 #        schedule_duration: null                  # (Optional) Duration in seconds for schedule, defaults to null
-#        success_retention_period: 1              # (Optional) Days to retain successful artifacts, defaults to 1
-#        failure_retention_period: 1              # (Optional) Days to retain failed artifacts, defaults to 1
-#        requests_type: "URL"                     # (Required) Request type: URL | SCRIPT | API | JSURL | TRACEURL
+#        schedule_retry:
+#          max_retries: null                      # (Optional) Max schedule retry attempts, defaults to group/module/provider default
+#        success_retention_period: 1              # (Optional) Days to retain successful run artifacts, defaults to 1
+#        failure_retention_period: 1              # (Optional) Days to retain failed run artifacts, defaults to 1
+#        requests_type: "URL"                     # (Required) Request type: URL | SCRIPT | API | JSURL | TRACEURL | HTTP | HTTP_API | BROWSER_URL | BROWSER_SCRIPT
 #        request_script: ""                       # (Optional) Inline script content, required if requests_type is SCRIPT
-#        request_script_ref: ""                   # (Optional) Script reference name (from request_scripts).
-#                                                 #   When set, runtime_version and handler are inherited from the referenced script.
+#        request_script_ref: ""                   # (Optional) Script name reference (from request_scripts var), alternative to request_script.
+#                                                 #   When set, runtime_version and handler are inherited from the referenced script definition.
 #        requests:
 #          - url: ""                              # (Required if requests_type is URL/API) Endpoint URL
 #            timeout: 30                          # (Optional) Request timeout in seconds, defaults to 30
-#            method: "GET"                        # (Optional) HTTP method: GET | POST | PUT | DELETE
+#            method: "GET"                        # (Optional) HTTP method: GET | POST | PUT | DELETE, defaults to GET
 #            headers: {}                          # (Optional) Request headers, defaults to {}
 #            body: ""                             # (Optional) Request body, required if method is POST/PUT
 #            assertions:
-#              - type: "STATUS_CODE"              # (Required) Type: STATUS_CODE | RESPONSE_TIME
+#              - type: "STATUS_CODE"              # (Required) Assertion type: STATUS_CODE | RESPONSE_TIME
 #                operator: "EQUALS"               # (Required) Operator: EQUALS | NOT_EQUALS | GREATER_THAN | LESS_THAN
 #                value: 200                       # (Required) Expected value
 #            retry:
@@ -171,6 +206,7 @@ vpc:
 #          timeout: null                          # (Optional) Timeout in seconds, defaults to null
 #          memory_mb: null                        # (Optional) Memory in MB, defaults to null
 #          tracing: null                          # (Optional) Enable X-Ray tracing, defaults to null
+#          ephemeral_storage_mb: null             # (Optional) Ephemeral storage in MB, minimum 1024, defaults to group/module/provider default
 #        alarms:
 #          enabled: true                          # (Optional) Create alarms for canary, defaults to true
 #          priority: 4                            # (Optional) Alarm priority 1-5, defaults to 4
@@ -178,7 +214,7 @@ vpc:
 #          evaluation_periods: "1"               # (Optional) Evaluation periods, defaults to "1"
 #          period: "900"                         # (Optional) Period in seconds, defaults to "900" (15 min)
 #          threshold: "90"                       # (Optional) SuccessPercent threshold, defaults to "90"
-#          metric: "SuccessPercent"              # (Optional) Metric: SuccessPercent | Failed | Duration
+#          metric: "SuccessPercent"              # (Optional) CloudWatch metric: SuccessPercent | Failed | Duration
 #          condition: "LessThanThreshold"        # (Optional) Alarm condition, defaults to "LessThanThreshold"
 #          statistic: "Average"                  # (Optional) Statistic: Average | Sum | Minimum | Maximum
 #          notifications:
@@ -188,7 +224,7 @@ vpc:
 # default_sns_topic_name: (Optional) Default SNS topic name for alarm notifications, defaults to ""
 #default_sns_topic_name: ""
 
-# create_alarms: (Optional) Create CloudWatch alarms for all canaries, defaults to true
+# create_alarms: (Optional) Create CloudWatch alarms for all Synthetics canaries, defaults to true
 #create_alarms: true
 
 # alarms_defaults: (Optional) Default CloudWatch alarm settings applied to all canaries
@@ -199,21 +235,27 @@ vpc:
 #  threshold: "90"                           # (Optional) Alarm threshold percentage, defaults to "90"
 #  metric: "SuccessPercent"                  # (Optional) Metric name, defaults to "SuccessPercent"
 #  condition: "LessThanThreshold"            # (Optional) Alarm condition, defaults to "LessThanThreshold"
-#  description: "This alarm is triggered when the canary fails."
+#  description: "This alarm is triggered when the canary fails." # (Optional) Default alarm description
 
 # request_scripts: (Optional) Reusable script definitions referenced by canaries via request_script_ref, defaults to []
 #request_scripts:
 #  - name: ""                                # (Required) Script reference name, used in canary.request_script_ref
 #    content: |                              # (Required) Script content (Python/Node.js)
 #    runtime_version: ""                     # (Required) AWS Synthetics runtime version for this script
-#                                            #   e.g., syn-python-selenium-6.0 or syn-nodejs-puppeteer-10.0
+#                                            #   e.g., syn-python-selenium-11.0 or syn-nodejs-puppeteer-16.0
 #    handler: ""                             # (Optional) Handler function name, defaults to custom_handler.handler
+
+# artifact_output_prefix: (Optional) Prefix under the artifacts bucket for canary run artifacts, defaults to bucket root
+#artifact_output_prefix: ""
+
+# code_package_prefix: (Optional) Prefix under the artifacts bucket for uploaded canary code packages, defaults to "upload/scripts"
+#code_package_prefix: "upload/scripts"
 
 # artifacts_bucket: (Optional) S3 bucket ID for storing canary run artifacts, defaults to ""
 # Note: Auto-populated from dependency output when artifact_bucket_dependency=true at scaffold time
 #artifacts_bucket: ""
 
-# create_artifacts_bucket: (Optional) Create a dedicated S3 artifacts bucket, defaults to false
+# create_artifacts_bucket: (Optional) Create a dedicated S3 bucket for artifacts, defaults to false
 # Note: Set to false automatically when artifact_bucket_dependency=true at scaffold time
 #create_artifacts_bucket: false
 ```
@@ -255,13 +297,16 @@ inputs = {
   is_hub    = false
   org       = local.env_vars.org
   spoke_def = local.spoke_vars.spoke
-  vpc                     = local.local_vars.vpc
-  groups                  = try(local.local_vars.groups, [])
-  default_sns_topic_name  = try(local.local_vars.default_sns_topic_name, "")
-  create_alarms           = try(local.local_vars.create_alarms, true)
-  alarms_defaults         = try(local.local_vars.alarms_defaults, {})
-  request_scripts         = try(local.local_vars.request_scripts, [])
-  artifacts_bucket        = try(local.local_vars.artifacts_bucket, "")
+  vpc                    = local.local_vars.vpc
+  groups                 = try(local.local_vars.groups, [])
+  default_sns_topic_name = try(local.local_vars.default_sns_topic_name, "")
+  create_alarms          = try(local.local_vars.create_alarms, true)
+  alarms_defaults        = try(local.local_vars.alarms_defaults, {})
+  request_scripts        = try(local.local_vars.request_scripts, [])
+  canary_defaults        = try(local.local_vars.canary_defaults, {})
+  artifact_output_prefix = try(local.local_vars.artifact_output_prefix, "")
+  code_package_prefix    = try(local.local_vars.code_package_prefix, "upload/scripts")
+  artifacts_bucket       = try(local.local_vars.artifacts_bucket, "")
   create_artifacts_bucket = try(local.local_vars.create_artifacts_bucket, false)
   extra_tags = local.tags
 }
@@ -293,12 +338,15 @@ added and `artifacts_bucket` / `create_artifacts_bucket` are wired to the depend
        - "subnet-0abc123"
        - "subnet-0def456"
 
+   artifacts_bucket: "example-synthetics-artifacts"
+   artifact_output_prefix: "synthetics/artifacts"
+   code_package_prefix: "synthetics/packages"
+
    groups:
      - name: "api-monitoring"
        canaries:
          - name: "api-health"
-           runtime_version: "syn-python-selenium-6.0"
-           requests_type: "API"
+           requests_type: "HTTP_API"
            requests:
              - url: "https://api.example.com/health"
                method: "GET"
@@ -309,7 +357,7 @@ added and `artifacts_bucket` / `create_artifacts_bucket` are wired to the depend
 
    create_alarms: true
    default_sns_topic_name: "monitoring-alerts"
-   create_artifacts_bucket: true
+   create_artifacts_bucket: false
    ```
 
 4. Apply configuration:
@@ -327,43 +375,71 @@ added and `artifacts_bucket` / `create_artifacts_bucket` are wired to the depend
 
 ## Examples
 
-```hcl
-module "synthetics" {
-  source = "cloudopsworks/terraform-module-aws-observability-synthetics"
+The following `inputs.yaml` example uses generic names and endpoints and can be applied
+from a directory produced by `terragrunt scaffold`:
 
-  groups = [
-    {
-      name = "api-monitoring"
-      canaries = [
-        {
-          name = "api-health"
-          requests_type = "API"
-          requests = [
-            {
-              url = "https://api.example.com/v1/status"
-              method = "GET"
-              assertions = [
-                {
-                  type = "STATUS_CODE"
-                  operator = "EQUALS"
-                  value = 200
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    }
-  ]
+```yaml
+vpc:
+  enabled: true
+  vpc_id: "vpc-00000000000000000"
+  subnet_ids:
+    - "subnet-00000000000000001"
+    - "subnet-00000000000000002"
+  security_group_ids:
+    - "sg-00000000000000000"
 
-  vpc = {
-    vpc_id = "vpc-1234567"
-    subnet_ids = ["subnet-abcdef"]
-  }
+artifacts_bucket: "example-synthetics-artifacts"
+artifact_output_prefix: "synthetics/artifacts"
+code_package_prefix: "synthetics/packages"
 
-  artifacts_bucket = "my-artifacts-bucket"
-  sns_topic_name = "monitoring-alerts"
-}
+canary_defaults:
+  artifact_config:
+    s3_encryption:
+      encryption_mode: "SSE_S3"
+  run_config:
+    ephemeral_storage_mb: 1024
+  schedule_retry:
+    max_retries: 1
+
+request_scripts:
+  - name: "browser-script"
+    runtime_version: "syn-nodejs-puppeteer-16.0"
+    handler: "custom_handler.handler"
+    content: |
+      exports.handler = async () => {
+        console.log("generic browser script");
+        return true;
+      };
+
+groups:
+  - name: "external-checks"
+    vpc:
+      enabled: false
+    canaries:
+      - name: "home-page"
+        requests_type: "BROWSER_SCRIPT"
+        request_script_ref: "browser-script"
+
+  - name: "private-api"
+    vpc:
+      enabled: true
+    default_run_config:
+      tracing: true
+      timeout: 60
+      memory_mb: 1024
+    canaries:
+      - name: "post-check"
+        requests_type: "HTTP_API"
+        requests:
+          - url: "https://api.example.org/v1/check"
+            method: "POST"
+            headers:
+              Content-Type: "application/json"
+            body: "{\"request\":\"example\",\"secret\":\"REDACTED\"}"
+            assertions:
+              - type: "STATUS_CODE"
+                operator: "EQUALS"
+                value: 202
 ```
 
 
@@ -448,7 +524,10 @@ Available targets:
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
 | <a name="input_alarms_defaults"></a> [alarms\_defaults](#input\_alarms\_defaults) | (optional) Default settings for CloudWatch alarms | <pre>object({<br/>    enabled            = optional(bool, true)<br/>    evaluation_periods = optional(string, "1")<br/>    period             = optional(string, "900")<br/>    threshold          = optional(string, "90")<br/>    metric             = optional(string, "SuccessPercent")<br/>    condition          = optional(string, "LessThanThreshold")<br/>    description        = optional(string, "This alarm is triggered when the canary fails.")<br/>  })</pre> | `{}` | no |
+| <a name="input_artifact_output_prefix"></a> [artifact\_output\_prefix](#input\_artifact\_output\_prefix) | (optional) Prefix under the artifacts bucket for AWS Synthetics run artifacts, defaults to the bucket root | `string` | `""` | no |
 | <a name="input_artifacts_bucket"></a> [artifacts\_bucket](#input\_artifacts\_bucket) | (optional) S3 bucket for storing Synthetics canary artifacts | `string` | `""` | no |
+| <a name="input_canary_defaults"></a> [canary\_defaults](#input\_canary\_defaults) | (optional) Module-level defaults for Synthetics canary provider options and validation behavior | <pre>object({<br/>    validation_mode = optional(string)<br/>    artifact_config = optional(object({<br/>      s3_encryption = optional(object({<br/>        encryption_mode = optional(string)<br/>        kms_key_arn     = optional(string)<br/>      }))<br/>    }), {})<br/>    run_config = optional(object({<br/>      ephemeral_storage_mb = optional(number)<br/>    }), {})<br/>    schedule_retry = optional(object({<br/>      max_retries = optional(number)<br/>    }), {})<br/>    vpc = optional(object({<br/>      ipv6_allowed_for_dual_stack = optional(bool)<br/>    }), {})<br/>  })</pre> | `{}` | no |
+| <a name="input_code_package_prefix"></a> [code\_package\_prefix](#input\_code\_package\_prefix) | (optional) Prefix under the artifacts bucket for uploaded canary code packages, defaults to upload/scripts | `string` | `"upload/scripts"` | no |
 | <a name="input_create_alarms"></a> [create\_alarms](#input\_create\_alarms) | (optional) Flag to create CloudWatch alarms for the Synthetics canaries, defaults to true | `bool` | `true` | no |
 | <a name="input_create_artifacts_bucket"></a> [create\_artifacts\_bucket](#input\_create\_artifacts\_bucket) | (optional) Flag to create the S3 bucket for Synthetics canary artifacts, required if artifacts\_bucket is not provided | `bool` | `false` | no |
 | <a name="input_default_sns_topic_name"></a> [default\_sns\_topic\_name](#input\_default\_sns\_topic\_name) | (optional) Name of the SNS topic for notifications, defaults to empty string | `string` | `""` | no |
@@ -456,18 +535,18 @@ Available targets:
 | <a name="input_groups"></a> [groups](#input\_groups) | Settings for the synthetics configurations | `any` | `[]` | no |
 | <a name="input_is_hub"></a> [is\_hub](#input\_is\_hub) | Is this a hub or spoke configuration? | `bool` | `false` | no |
 | <a name="input_org"></a> [org](#input\_org) | Organization details | <pre>object({<br/>    organization_name = string<br/>    organization_unit = string<br/>    environment_type  = string<br/>    environment_name  = string<br/>  })</pre> | n/a | yes |
-| <a name="input_request_scripts"></a> [request\_scripts](#input\_request\_scripts) | (optional) Array of request scripts for the Synthetics canaries | <pre>list(object({<br/>    name            = string<br/>    content         = string<br/>    runtime_version = string<br/>  }))</pre> | `[]` | no |
+| <a name="input_request_scripts"></a> [request\_scripts](#input\_request\_scripts) | (optional) Array of request scripts for the Synthetics canaries | <pre>list(object({<br/>    name            = string<br/>    content         = string<br/>    runtime_version = string<br/>    handler         = optional(string, "custom_handler.handler")<br/>  }))</pre> | `[]` | no |
 | <a name="input_spoke_def"></a> [spoke\_def](#input\_spoke\_def) | Spoke ID Number, must be a 3 digit number | `string` | `"001"` | no |
-| <a name="input_vpc"></a> [vpc](#input\_vpc) | (required) VPC configuration for the Synthetics canaries | <pre>object({<br/>    enabled            = optional(bool, true)<br/>    vpc_id             = optional(string, "")<br/>    subnet_ids         = optional(list(string), [])<br/>    security_group_ids = optional(list(string), [])<br/>  })</pre> | n/a | yes |
+| <a name="input_vpc"></a> [vpc](#input\_vpc) | (required) VPC configuration for the Synthetics canaries | <pre>object({<br/>    enabled                     = optional(bool, true)<br/>    vpc_id                      = optional(string, "")<br/>    subnet_ids                  = optional(list(string), [])<br/>    security_group_ids          = optional(list(string), [])<br/>    ipv6_allowed_for_dual_stack = optional(bool)<br/>  })</pre> | n/a | yes |
 
 ## Outputs
 
 | Name | Description |
 |------|-------------|
-| <a name="output_artifacts_bucket_arn"></a> [artifacts\_bucket\_arn](#output\_artifacts\_bucket\_arn) | n/a |
-| <a name="output_artifacts_bucket_name"></a> [artifacts\_bucket\_name](#output\_artifacts\_bucket\_name) | n/a |
-| <a name="output_synthetics_canaries"></a> [synthetics\_canaries](#output\_synthetics\_canaries) | n/a |
-| <a name="output_synthetics_groups"></a> [synthetics\_groups](#output\_synthetics\_groups) | n/a |
+| <a name="output_artifacts_bucket_arn"></a> [artifacts\_bucket\_arn](#output\_artifacts\_bucket\_arn) | ARN of the S3 artifacts bucket created by this module, or null when an existing bucket is used. |
+| <a name="output_artifacts_bucket_name"></a> [artifacts\_bucket\_name](#output\_artifacts\_bucket\_name) | Name of the S3 artifacts bucket created by this module, or null when an existing bucket is used. |
+| <a name="output_synthetics_canaries"></a> [synthetics\_canaries](#output\_synthetics\_canaries) | Synthetics canaries created by this module with their group names, map keys, names, ARNs, status, and timeline. |
+| <a name="output_synthetics_groups"></a> [synthetics\_groups](#output\_synthetics\_groups) | Synthetics groups created by this module with their map keys, names, and ARNs. |
 
 
 

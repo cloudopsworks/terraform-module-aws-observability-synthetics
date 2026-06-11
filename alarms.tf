@@ -1,5 +1,5 @@
 ##
-# (c) 2021-2025
+# (c) 2021-2026
 #     Cloud Ops Works LLC - https://cloudops.works/
 #     Find us on:
 #       GitHub: https://github.com/cloudopsworks
@@ -69,18 +69,22 @@ resource "aws_cloudwatch_metric_alarm" "canary_failed" {
   alarm_actions = concat(
     [
       for key, topic in local.sns_topics_arns : topic.arn
+      if topic.key == each.key
     ],
     [
       for key, topic in local.sns_topics_names : data.aws_sns_topic.topics_by_name[key].arn
+      if topic.key == each.key
     ],
     var.default_sns_topic_name != "" ? [data.aws_sns_topic.default_topic[0].arn] : []
   )
   ok_actions = concat(
     [
       for key, topic in local.sns_topics_arns : topic.arn
+      if topic.key == each.key
     ],
     [
       for key, topic in local.sns_topics_names : data.aws_sns_topic.topics_by_name[key].arn
+      if topic.key == each.key
     ],
     var.default_sns_topic_name != "" ? [data.aws_sns_topic.default_topic[0].arn] : []
   )

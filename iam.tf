@@ -63,8 +63,8 @@ data "aws_iam_policy_document" "synthetic_policy" {
       "s3:PutObject",
     ]
     resources = [
-      "${var.create_artifacts_bucket ? module.synthetics_artifacts.s3_bucket_arn : data.aws_s3_bucket.artifacts[0].arn}/canary/${data.aws_region.current.region}/*",
-      "${var.create_artifacts_bucket ? module.synthetics_artifacts.s3_bucket_arn : data.aws_s3_bucket.artifacts[0].arn}/upload/scripts/*",
+      "${var.create_artifacts_bucket ? module.synthetics_artifacts.s3_bucket_arn : data.aws_s3_bucket.artifacts[0].arn}/${local.artifact_iam_path}",
+      "${var.create_artifacts_bucket ? module.synthetics_artifacts.s3_bucket_arn : data.aws_s3_bucket.artifacts[0].arn}/${local.code_package_prefix}/*",
     ]
   }
   statement {
