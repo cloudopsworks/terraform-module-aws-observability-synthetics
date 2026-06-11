@@ -1,5 +1,5 @@
 ##
-# (c) 2021-2025
+# (c) 2021-2026
 #     Cloud Ops Works LLC - https://cloudops.works/
 #     Find us on:
 #       GitHub: https://github.com/cloudopsworks
@@ -12,7 +12,7 @@ locals {
     for key, content in local.synthetics : key => {
       file_path     = "${path.module}/sources/standard/${key}/nodejs/"
       file_name     = "${key}_config.yaml"
-      bucket_key    = "upload/scripts/${key}.zip"
+      bucket_key    = "${local.code_package_prefix}/${key}.zip"
       zip_file_path = "${path.module}/scripts/${key}.zip"
     }
     if content.is_nodejs
@@ -45,7 +45,7 @@ resource "local_file" "script_config_nodejs" {
 
 resource "null_resource" "stage_nodejs" {
   triggers = {
-    always = timestamp()
+    scripts_sha = local.nodejs_scripts_sha
   }
   provisioner "local-exec" {
     command     = "npm install --prefix ./stage/nodejs --no-save --no-package-json --no-package-lock --omit=dev --target_arch=x64 --target_platform=linux js-yaml"
@@ -118,7 +118,7 @@ resource "aws_s3_object" "script_url_nodejs" {
 resource "local_file" "script_custom_node" {
   for_each        = local.nodejs_synthetics_custom
   content         = try(local.request_scripts_map[each.value.canary.request_script_ref].content, each.value.canary.request_script)
-  filename        = "${path.module}/sources/custom/${each.key}/nodejs/node_modules/${split(".", try(each.value.canary.handler, each.value.script_configuration.handler))[0]}.js"
+  filename        = "${path.module}/sources/custom/${each.key}/nodejs/node_modules/${split(".", each.value.resolved_handler)[0]}.js"
   file_permission = "0644"
 }
 
@@ -161,4 +161,3 @@ resource "terraform_data" "script_custom_node" {
 #     ]
 #   }
 # }
-
