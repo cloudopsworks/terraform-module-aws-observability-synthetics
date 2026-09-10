@@ -30,6 +30,10 @@ locals {
   # rejects UpdateCanary when the runtime changes without a Code payload, and the
   # provider only sends Code when s3_bucket/s3_key/s3_version/handler change.
   nodejs_runtimes_sha = sha256(join(",", [for key in sort(keys(local.nodejs_synthetics_url)) : local.nodejs_synthetics_url[key].resolved_runtime_version]))
+  # Staging is a filesystem side effect, not tracked state. The archive step must be
+  # able to rebuild it on its own: a tainted archive retry, or a fresh module cache,
+  # leaves ./stage/nodejs missing while stage_nodejs has no trigger change to re-run on.
+  stage_nodejs_command = "npm install --prefix ./stage/nodejs --no-save --no-package-json --no-package-lock --omit=dev --target_arch=x64 --target_platform=linux js-yaml && cp -r ./nodejs/ ./stage/nodejs/"
 }
 
 resource "local_file" "script_config_nodejs" {
@@ -53,11 +57,7 @@ resource "null_resource" "stage_nodejs" {
     runtimes_sha = local.nodejs_runtimes_sha
   }
   provisioner "local-exec" {
-    command     = "npm install --prefix ./stage/nodejs --no-save --no-package-json --no-package-lock --omit=dev --target_arch=x64 --target_platform=linux js-yaml"
-    working_dir = "${path.module}/sources/standard"
-  }
-  provisioner "local-exec" {
-    command     = "cp -r ./nodejs/ ./stage/nodejs/"
+    command     = local.stage_nodejs_command
     working_dir = "${path.module}/sources/standard"
   }
 }
@@ -68,6 +68,10 @@ resource "null_resource" "archive_url_nodejs" {
     script_config   = local_file.script_config_nodejs[each.key].content_sha256
     scripts_sha     = local.nodejs_scripts_sha
     runtime_version = each.value.resolved_runtime_version
+  }
+  provisioner "local-exec" {
+    command     = "test -d ./stage/nodejs || (${local.stage_nodejs_command})"
+    working_dir = "${path.module}/sources/standard"
   }
   provisioner "local-exec" {
     command     = "cp -r ./stage/nodejs ./${each.key}/"

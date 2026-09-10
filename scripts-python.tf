@@ -49,6 +49,10 @@ locals {
   # rejects UpdateCanary when the runtime changes without a Code payload, and the
   # provider only sends Code when s3_bucket/s3_key/s3_version/handler change.
   python_runtimes_sha = sha256(join(",", [for key in sort(keys(local.python_synthetics_url)) : local.python_synthetics_url[key].resolved_runtime_version]))
+  # Staging is a filesystem side effect, not tracked state. The archive step must be
+  # able to rebuild it on its own: a tainted archive retry, or a fresh module cache,
+  # leaves ./stage/python missing while stage_python has no trigger change to re-run on.
+  stage_python_command = "python3 -m pip install -r requirements.txt --target ./stage/python --platform manylinux_2_17_x86_64 --python-version 3.11 --implementation cp --only-binary=:all: --no-deps --upgrade && cp -r ./python/ ./stage/python/"
 }
 
 resource "local_file" "script_config_python" {
@@ -72,11 +76,7 @@ resource "null_resource" "stage_python" {
     runtimes_sha = local.python_runtimes_sha
   }
   provisioner "local-exec" {
-    command     = "python3 -m pip install -r requirements.txt --target ./stage/python --platform manylinux_2_17_x86_64 --python-version 3.11 --implementation cp --only-binary=:all: --no-deps --upgrade"
-    working_dir = "${path.module}/sources/standard/"
-  }
-  provisioner "local-exec" {
-    command     = "cp -r ./python/ ./stage/python/"
+    command     = local.stage_python_command
     working_dir = "${path.module}/sources/standard"
   }
 }
@@ -87,6 +87,10 @@ resource "null_resource" "archive_url_python" {
     script_config      = local_file.script_config_python[each.key].content_sha256
     python_scripts_sha = local.python_scripts_sha
     runtime_version    = each.value.resolved_runtime_version
+  }
+  provisioner "local-exec" {
+    command     = "test -d ./stage/python || (${local.stage_python_command})"
+    working_dir = "${path.module}/sources/standard"
   }
   provisioner "local-exec" {
     command     = "cp -r ./stage/python ./${each.key}/"
