@@ -52,7 +52,11 @@ locals {
   # Staging is a filesystem side effect, not tracked state. The archive step must be
   # able to rebuild it on its own: a tainted archive retry, or a fresh module cache,
   # leaves ./stage/python missing while stage_python has no trigger change to re-run on.
-  stage_python_command = "python3 -m pip install -r requirements.txt --target ./stage/python --platform manylinux_2_17_x86_64 --python-version 3.11 --implementation cp --only-binary=:all: --no-deps --upgrade && cp -r ./python/ ./stage/python/"
+  # Terragrunt writes its module cache read-only (0444), so a plain cp propagates that
+  # mode to the staged copy and the next cp cannot open the destination. -f removes the
+  # destination first, and chmod restores write permission so anything copied out of
+  # stage/ later is writable too.
+  stage_python_command = "python3 -m pip install -r requirements.txt --target ./stage/python --platform manylinux_2_17_x86_64 --python-version 3.11 --implementation cp --only-binary=:all: --no-deps --upgrade && cp -rf ./python/ ./stage/python/ && chmod -R u+w ./stage/python"
 }
 
 resource "local_file" "script_config_python" {
@@ -94,7 +98,7 @@ resource "null_resource" "archive_url_python" {
     working_dir = "${path.module}/sources/standard"
   }
   provisioner "local-exec" {
-    command     = "cp -r ./stage/python ./${each.key}/"
+    command     = "cp -rf ./stage/python ./${each.key}/"
     working_dir = "${path.module}/sources/standard"
   }
   provisioner "local-exec" {

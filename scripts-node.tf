@@ -37,7 +37,11 @@ locals {
   # runtime. The former --target_arch/--target_platform/--no-package-json were never
   # npm configs at all: npm 11 ignores them with a warning and npm 12 rejects them
   # outright with EUNKNOWNCONFIG.
-  stage_nodejs_command = "npm install --prefix ./stage/nodejs --no-save --no-package-lock --omit=dev --cpu=x64 --os=linux js-yaml && cp -r ./nodejs/ ./stage/nodejs/"
+  # Terragrunt writes its module cache read-only (0444), so a plain cp propagates that
+  # mode to the staged copy and the next cp cannot open the destination. -f removes the
+  # destination first, and chmod restores write permission so anything copied out of
+  # stage/ later is writable too.
+  stage_nodejs_command = "npm install --prefix ./stage/nodejs --no-save --no-package-lock --omit=dev --cpu=x64 --os=linux js-yaml && cp -rf ./nodejs/ ./stage/nodejs/ && chmod -R u+w ./stage/nodejs"
 }
 
 resource "local_file" "script_config_nodejs" {
@@ -79,7 +83,7 @@ resource "null_resource" "archive_url_nodejs" {
     working_dir = "${path.module}/sources/standard"
   }
   provisioner "local-exec" {
-    command     = "cp -r ./stage/nodejs ./${each.key}/"
+    command     = "cp -rf ./stage/nodejs ./${each.key}/"
     working_dir = "${path.module}/sources/standard"
   }
   provisioner "local-exec" {
