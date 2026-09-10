@@ -25,9 +25,6 @@ resource "aws_security_group" "this" {
     Name = format("synth-%s-%s-sg", each.key, local.system_name_short)
     }
   )
-  depends_on = [
-    aws_iam_role.this
-  ]
   lifecycle {
     create_before_destroy = true
   }
