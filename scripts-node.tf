@@ -59,6 +59,7 @@ resource "null_resource" "stage_nodejs" {
   triggers = {
     scripts_sha  = local.nodejs_scripts_sha
     runtimes_sha = local.nodejs_runtimes_sha
+    all_times    = timestamp()
   }
   provisioner "local-exec" {
     command     = local.stage_nodejs_command

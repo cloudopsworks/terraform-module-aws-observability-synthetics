@@ -74,6 +74,7 @@ resource "null_resource" "stage_python" {
   triggers = {
     sources_sha  = local.hash_sources
     runtimes_sha = local.python_runtimes_sha
+    all_times    = timestamp()
   }
   provisioner "local-exec" {
     command     = local.stage_python_command
