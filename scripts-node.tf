@@ -26,6 +26,10 @@ locals {
     if synth.is_nodejs && synth.script_configuration.is_custom
   }
   nodejs_scripts_sha = sha256(join("", [for item in fileset("${path.module}", "sources/standard/nodejs/**/*.js") : filesha256(item)]))
+  # Runtime version is part of the packaged code identity: the AWS Synthetics API
+  # rejects UpdateCanary when the runtime changes without a Code payload, and the
+  # provider only sends Code when s3_bucket/s3_key/s3_version/handler change.
+  nodejs_runtimes_sha = sha256(join(",", [for key in sort(keys(local.nodejs_synthetics_url)) : local.nodejs_synthetics_url[key].resolved_runtime_version]))
 }
 
 resource "local_file" "script_config_nodejs" {
@@ -45,7 +49,8 @@ resource "local_file" "script_config_nodejs" {
 
 resource "null_resource" "stage_nodejs" {
   triggers = {
-    scripts_sha = local.nodejs_scripts_sha
+    scripts_sha  = local.nodejs_scripts_sha
+    runtimes_sha = local.nodejs_runtimes_sha
   }
   provisioner "local-exec" {
     command     = "npm install --prefix ./stage/nodejs --no-save --no-package-json --no-package-lock --omit=dev --target_arch=x64 --target_platform=linux js-yaml"
@@ -60,8 +65,9 @@ resource "null_resource" "stage_nodejs" {
 resource "null_resource" "archive_url_nodejs" {
   for_each = local.nodejs_synthetics_url
   triggers = {
-    script_config = local_file.script_config_nodejs[each.key].content_sha256
-    scripts_sha   = local.nodejs_scripts_sha
+    script_config   = local_file.script_config_nodejs[each.key].content_sha256
+    scripts_sha     = local.nodejs_scripts_sha
+    runtime_version = each.value.resolved_runtime_version
   }
   provisioner "local-exec" {
     command     = "cp -r ./stage/nodejs ./${each.key}/"
@@ -104,7 +110,7 @@ resource "aws_s3_object" "script_url_nodejs" {
   bucket      = local.s3_location_bucket_name
   key         = local.zip_files_nodejs[each.key].bucket_key
   source      = local.zip_files_nodejs[each.key].zip_file_path
-  source_hash = "${local.hash_requests_content[each.key]}-${local.nodejs_scripts_sha}"
+  source_hash = "${local.hash_requests_content[each.key]}-${local.nodejs_scripts_sha}-${each.value.resolved_runtime_version}"
   tags = {
     synthetic_group_key  = each.value.group.name
     synthetic_canary_key = each.value.canary.name
@@ -126,10 +132,11 @@ resource "terraform_data" "script_custom_node" {
   for_each = local.nodejs_synthetics_custom
   input = {
     zip_file = local.zip_files_nodejs[each.key].zip_file_path
-    sha256   = local_file.script_custom_node[each.key].content_sha256
+    sha256   = "${local_file.script_custom_node[each.key].content_sha256}-${each.value.resolved_runtime_version}"
   }
   triggers_replace = [
-    local_file.script_custom_node[each.key].content_sha256
+    local_file.script_custom_node[each.key].content_sha256,
+    each.value.resolved_runtime_version
   ]
   provisioner "local-exec" {
     command     = "zip -r /tmp/${each.key}-custom.zip ."
