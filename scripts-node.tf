@@ -33,7 +33,11 @@ locals {
   # Staging is a filesystem side effect, not tracked state. The archive step must be
   # able to rebuild it on its own: a tainted archive retry, or a fresh module cache,
   # leaves ./stage/nodejs missing while stage_nodejs has no trigger change to re-run on.
-  stage_nodejs_command = "npm install --prefix ./stage/nodejs --no-save --no-package-json --no-package-lock --omit=dev --target_arch=x64 --target_platform=linux js-yaml && cp -r ./nodejs/ ./stage/nodejs/"
+  # --cpu/--os are the npm configs that actually cross-target the Lambda x86_64 Linux
+  # runtime. The former --target_arch/--target_platform/--no-package-json were never
+  # npm configs at all: npm 11 ignores them with a warning and npm 12 rejects them
+  # outright with EUNKNOWNCONFIG.
+  stage_nodejs_command = "npm install --prefix ./stage/nodejs --no-save --no-package-lock --omit=dev --cpu=x64 --os=linux js-yaml && cp -r ./nodejs/ ./stage/nodejs/"
 }
 
 resource "local_file" "script_config_nodejs" {
