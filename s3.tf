@@ -1,5 +1,5 @@
 ##
-# (c) 2021-2025
+# (c) 2021-2026
 #     Cloud Ops Works LLC - https://cloudops.works/
 #     Find us on:
 #       GitHub: https://github.com/cloudopsworks
@@ -24,7 +24,6 @@ module "synthetics_artifacts" {
   version                               = "~> 5.1"
   bucket                                = local.created_artifacts_bucket
   create_bucket                         = var.create_artifacts_bucket
-  acl                                   = "private"
   block_public_acls                     = true
   block_public_policy                   = true
   ignore_public_acls                    = true
@@ -35,7 +34,7 @@ module "synthetics_artifacts" {
   attach_policy                         = true
   policy                                = ""
   control_object_ownership              = true
-  object_ownership                      = "ObjectWriter"
+  object_ownership                      = "BucketOwnerEnforced"
   versioning = {
     enabled = true
   }

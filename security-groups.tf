@@ -1,5 +1,5 @@
 ##
-# (c) 2021-2025
+# (c) 2021-2026
 #     Cloud Ops Works LLC - https://cloudops.works/
 #     Find us on:
 #       GitHub: https://github.com/cloudopsworks
@@ -12,7 +12,7 @@ resource "aws_security_group" "this" {
     for key, group in local.synth_groups : key => group
     if var.vpc.enabled && try(group.vpc.enabled, true)
   }
-  name        = format("%s-%s-sg", each.key, local.system_name)
+  name        = format("synth-%s-%s-sg", each.key, local.system_name_short)
   description = "Security group for ${each.key} Synthetics canary"
   vpc_id      = var.vpc.vpc_id
   egress { # Allow all outbound traffic
@@ -21,7 +21,10 @@ resource "aws_security_group" "this" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-  tags = merge(local.all_tags, try(each.value.tags, {}))
+  tags = merge(local.all_tags, try(each.value.tags, {}), {
+    Name = format("synth-%s-%s-sg", each.key, local.system_name_short)
+    }
+  )
   depends_on = [
     aws_iam_role.this
   ]

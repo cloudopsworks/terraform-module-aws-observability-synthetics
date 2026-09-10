@@ -9,6 +9,8 @@
 
 data "aws_caller_identity" "current" {}
 
+data "aws_partition" "current" {}
+
 # Assume role policy for Synthetics canaries
 data "aws_iam_policy_document" "assume_role_policy" {
   statement {
@@ -51,7 +53,7 @@ data "aws_iam_policy_document" "synthetic_policy" {
       "s3:GetBucketAcl",
     ]
     resources = [
-      var.create_artifacts_bucket ? module.synthetics_artifacts.s3_bucket_arn : data.aws_s3_bucket.artifacts[0].arn,
+      var.create_artifacts_bucket ? "arn:${data.aws_partition.current.partition}:s3:::${local.created_artifacts_bucket}" : data.aws_s3_bucket.artifacts[0].arn,
     ]
   }
   statement {
@@ -63,8 +65,8 @@ data "aws_iam_policy_document" "synthetic_policy" {
       "s3:PutObject",
     ]
     resources = [
-      "${var.create_artifacts_bucket ? module.synthetics_artifacts.s3_bucket_arn : data.aws_s3_bucket.artifacts[0].arn}/${local.artifact_iam_path}",
-      "${var.create_artifacts_bucket ? module.synthetics_artifacts.s3_bucket_arn : data.aws_s3_bucket.artifacts[0].arn}/${local.code_package_prefix}/*",
+      "${var.create_artifacts_bucket ? "arn:${data.aws_partition.current.partition}:s3:::${local.created_artifacts_bucket}" : data.aws_s3_bucket.artifacts[0].arn}/${local.artifact_iam_path}",
+      "${var.create_artifacts_bucket ? "arn:${data.aws_partition.current.partition}:s3:::${local.created_artifacts_bucket}" : data.aws_s3_bucket.artifacts[0].arn}/${local.code_package_prefix}/*",
     ]
   }
   statement {
@@ -76,8 +78,8 @@ data "aws_iam_policy_document" "synthetic_policy" {
       "logs:PutLogEvents",
     ]
     resources = [
-      "arn:aws:logs:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/cwsyn-*",
-      "arn:aws:logs:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/cwsyn-*:*"
+      "arn:${data.aws_partition.current.partition}:logs:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/cwsyn-*",
+      "arn:${data.aws_partition.current.partition}:logs:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/cwsyn-*:*"
     ]
   }
   statement {
