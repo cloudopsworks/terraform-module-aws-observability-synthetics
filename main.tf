@@ -137,6 +137,15 @@ locals {
     for key, synthetic in local.synthetics : key => synthetic
     if !synthetic.script_configuration.is_custom
   }
+  canary_config_parameter_arns = {
+    for key, synthetic in local.standard_synthetics : key => format(
+      "arn:%s:ssm:%s:%s:parameter/%s-config",
+      data.aws_partition.current.partition,
+      data.aws_region.current.region,
+      data.aws_caller_identity.current.account_id,
+      synthetic.canary_final_name,
+    )
+  }
   standard_synthetic_keys_by_group = {
     for group_name in keys(local.synth_groups) : group_name => [
       for key, synthetic in local.standard_synthetics : key

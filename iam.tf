@@ -91,7 +91,7 @@ data "aws_iam_policy_document" "synthetic_policy" {
         "ssm:GetParameter",
       ]
       resources = [
-        for key in statement.value : aws_ssm_parameter.canary_config[key].arn
+        for key in statement.value : local.canary_config_parameter_arns[key]
       ]
     }
   }
@@ -117,7 +117,7 @@ data "aws_iam_policy_document" "synthetic_policy" {
         test     = "ForAnyValue:StringEquals"
         variable = "kms:EncryptionContext:PARAMETER_ARN"
         values = [
-          for key in statement.value : aws_ssm_parameter.canary_config[key].arn
+          for key in statement.value : local.canary_config_parameter_arns[key]
         ]
       }
     }

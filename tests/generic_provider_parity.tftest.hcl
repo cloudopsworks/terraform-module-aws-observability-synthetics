@@ -1,4 +1,9 @@
 mock_provider "aws" {
+  mock_data "aws_partition" {
+    defaults = {
+      partition = "aws"
+    }
+  }
   mock_data "aws_region" {
     defaults = {
       region = "us-east-1"
@@ -70,6 +75,11 @@ run "generic_consumers_plan" {
   assert {
     condition     = aws_ssm_parameter.canary_config["consumer-b-service-health"].name == "synth-service-health-observability-prod-production-001-usea1-config"
     error_message = "SSM configuration parameter names must follow the Synthetics canary naming convention."
+  }
+
+  assert {
+    condition     = local.canary_config_parameter_arns["consumer-b-service-health"] == "arn:aws:ssm:us-east-1:123456789012:parameter/synth-service-health-observability-prod-production-001-usea1-config"
+    error_message = "Canary configuration parameter ARNs must be available when the IAM policy is planned."
   }
 
   assert {
