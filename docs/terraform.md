@@ -13,10 +13,10 @@
 
 | Name | Version |
 | ---- | ------- |
-| <a name="provider_aws"></a> [aws](#provider\_aws) | 6.64.0 |
-| <a name="provider_local"></a> [local](#provider\_local) | 2.9.1 |
-| <a name="provider_null"></a> [null](#provider\_null) | 3.3.2 |
-| <a name="provider_random"></a> [random](#provider\_random) | 3.9.0 |
+| <a name="provider_aws"></a> [aws](#provider\_aws) | ~> 6.35 |
+| <a name="provider_local"></a> [local](#provider\_local) | ~> 2.5 |
+| <a name="provider_null"></a> [null](#provider\_null) | ~> 3.2 |
+| <a name="provider_random"></a> [random](#provider\_random) | ~> 3.5 |
 | <a name="provider_terraform"></a> [terraform](#provider\_terraform) | n/a |
 
 ## Modules
@@ -48,6 +48,8 @@
 | [null_resource.archive_url_python](https://registry.terraform.io/providers/hashicorp/null/latest/docs/resources/resource) | resource |
 | [null_resource.stage_nodejs](https://registry.terraform.io/providers/hashicorp/null/latest/docs/resources/resource) | resource |
 | [null_resource.stage_python](https://registry.terraform.io/providers/hashicorp/null/latest/docs/resources/resource) | resource |
+| [random_id.nodejs_staging](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/id) | resource |
+| [random_id.python_staging](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/id) | resource |
 | [random_string.random](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/string) | resource |
 | [terraform_data.script_custom_node](https://registry.terraform.io/providers/hashicorp/terraform/latest/docs/resources/data) | resource |
 | [terraform_data.script_custom_python](https://registry.terraform.io/providers/hashicorp/terraform/latest/docs/resources/data) | resource |
