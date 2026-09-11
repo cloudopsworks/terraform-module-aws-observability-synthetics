@@ -117,19 +117,21 @@ run "generic_consumers_plan" {
     error_message = "Code package prefix should be applied to canary package keys."
   }
 
+  # Build IDs and timestamp triggers are intentionally unknown until apply.
+  # Packaging lifecycle and ZIP contents are covered by test_packaging.py.
   assert {
-    condition     = endswith(aws_s3_object.script_url_nodejs["consumer-b-service-health"].source_hash, "-true")
-    error_message = "Changing force_rebuild must refresh every Node.js standard canary package in its group."
+    condition     = toset(keys(terraform_data.archive_url_nodejs)) == toset(keys(aws_s3_object.script_url_nodejs))
+    error_message = "Every Node.js standard upload must have an apply-time ZIP builder."
   }
 
   assert {
-    condition     = endswith(aws_s3_object.script_url_python["consumer-c-legacy-invalid-assertion"].source_hash, "-false")
-    error_message = "A group without force_rebuild must retain the stable Python package identity."
+    condition     = toset(keys(terraform_data.archive_url_python)) == toset(keys(aws_s3_object.script_url_python))
+    error_message = "Every Python standard upload must have an apply-time ZIP builder, including groups with force_rebuild=false."
   }
 
   assert {
-    condition     = endswith(terraform_data.script_custom_node["consumer-a-script-ref"].input.sha256, "-true")
-    error_message = "Changing force_rebuild must rebuild custom canary ZIP archives in its group."
+    condition     = toset(concat(keys(terraform_data.script_custom_node), keys(terraform_data.script_custom_python))) == toset(keys(aws_s3_object.script_custom))
+    error_message = "Every custom script upload must have an apply-time ZIP builder."
   }
 
   assert {

@@ -8,16 +8,6 @@
 #
 
 locals {
-  # compute hash from ${path.module}/sources will generate on changes from updates from this module
-  hash_sources = upper(
-    sha256(
-      join("", [
-        filesha256("${path.module}/sources/standard/requirements.txt"),
-        filesha256("${path.module}/sources/standard/nodejs/node_modules/canary_handler.js"),
-        filesha256("${path.module}/sources/standard/python/canary_handler.py"),
-      ])
-    )
-  )
   canary_requests_content = {
     for key, synthetic in local.synthetics : key => yamlencode({
       requests = synthetic.canary.requests
@@ -40,19 +30,9 @@ locals {
     if synth.is_python && synth.script_configuration.is_custom
   }
   python_staging_directory = "/tmp/cloudopsworks-synthetics-python-${random_id.python_staging.hex}"
-  python_scripts_sha       = sha256(join("", [for item in fileset("${path.module}", "sources/standard/python/**/*.py") : filesha256(item)]))
-  python_dependencies_sha  = filesha256("${path.module}/sources/standard/requirements.txt")
-  # Runtime version is part of the packaged code identity: the AWS Synthetics API
-  # rejects UpdateCanary when the runtime changes without a Code payload, and the
-  # provider only sends Code when s3_bucket/s3_key/s3_version/handler change.
-  python_runtimes_sha = sha256(join(",", [for key in sort(keys(local.python_synthetics_url)) : local.python_synthetics_url[key].resolved_runtime_version]))
-  # Staging is a filesystem side effect. Each apply uses a unique directory under
-  # /tmp so module sources and concurrent module runs never share package contents.
-  # Terragrunt writes its module cache read-only (0444), so a plain cp propagates that
-  # mode to the staged copy and the next cp cannot open the destination. -f removes the
-  # destination first, and chmod restores write permission so anything copied out of
-  # the temporary staging directory later is writable too.
-  stage_python_command = "python3 -m pip install -r requirements.txt --target ${local.python_staging_directory}/python --platform manylinux_2_17_x86_64 --python-version 3.11 --implementation cp --only-binary=:all: --no-deps --upgrade && cp -rf ./python/ ${local.python_staging_directory}/python/ && chmod -R u+w ${local.python_staging_directory}/python"
+  # Stage dependencies at apply time; no generated files are needed during plan.
+  # Copy directory contents so Linux and macOS produce the same ZIP layout.
+  stage_python_command = "python3 -m pip install -r requirements.txt --target ${local.python_staging_directory}/python --platform manylinux_2_17_x86_64 --python-version 3.11 --implementation cp --only-binary=:all: --no-deps --upgrade && cp -rf ./python/. ${local.python_staging_directory}/python/ && chmod -R u+w ${local.python_staging_directory}/python"
 }
 
 resource "random_id" "python_staging" {
@@ -62,10 +42,8 @@ resource "random_id" "python_staging" {
   }
 }
 
-resource "null_resource" "stage_python" {
-  triggers = {
-    sources_sha       = local.hash_sources
-    runtimes_sha      = local.python_runtimes_sha
+resource "terraform_data" "stage_python" {
+  triggers_replace = {
     staging_directory = local.python_staging_directory
   }
   provisioner "local-exec" {
@@ -74,32 +52,28 @@ resource "null_resource" "stage_python" {
   }
   provisioner "local-exec" {
     when    = destroy
-    command = "staging_directory='${try(self.triggers.staging_directory, "")}' && test -z \"$staging_directory\" || rm -rf \"$staging_directory\""
+    command = "staging_directory='${try(self.triggers_replace.staging_directory, "")}' && test -z \"$staging_directory\" || rm -rf \"$staging_directory\""
   }
 }
 
-resource "null_resource" "archive_url_python" {
-  for_each = local.python_synthetics_url
-  triggers = {
-    python_scripts_sha      = local.python_scripts_sha
-    python_dependencies_sha = local.python_dependencies_sha
-    runtime_version         = each.value.resolved_runtime_version
-    force_rebuild           = local.group_force_rebuild[each.value.group.name]
-  }
+# Always recreate the ZIP on the apply runner, even when source inputs are unchanged.
+resource "terraform_data" "archive_url_python" {
+  for_each         = local.python_synthetics_url
+  triggers_replace = timestamp()
+
   provisioner "local-exec" {
-    command     = "cp -rf ${local.python_staging_directory}/python ./${each.key}/"
-    working_dir = "${path.module}/sources/standard"
+    command     = <<-EOT
+      set -eu
+      mkdir -p "$(dirname "$ZIP_FILE")"
+      rm -f "$ZIP_FILE"
+      zip -q -r "$ZIP_FILE" .
+    EOT
+    working_dir = local.python_staging_directory
+    environment = {
+      ZIP_FILE = abspath(local.zip_files_python[each.key].zip_file_path)
+    }
   }
-  provisioner "local-exec" {
-    command     = "zip -q -r /tmp/${each.key}.zip ."
-    working_dir = "${path.module}/sources/standard/${each.key}/"
-  }
-  provisioner "local-exec" {
-    command = "mv /tmp/${each.key}.zip ${local.zip_files_python[each.key].zip_file_path}"
-  }
-  depends_on = [
-    null_resource.stage_python,
-  ]
+  depends_on = [terraform_data.stage_python]
 }
 
 resource "aws_s3_object" "script_url_python" {
@@ -107,54 +81,47 @@ resource "aws_s3_object" "script_url_python" {
   bucket      = local.s3_location_bucket_name
   key         = local.zip_files_python[each.key].bucket_key
   source      = local.zip_files_python[each.key].zip_file_path
-  source_hash = "${local.python_scripts_sha}-${local.python_dependencies_sha}-${each.value.resolved_runtime_version}-${local.group_force_rebuild[each.value.group.name]}"
+  source_hash = terraform_data.archive_url_python[each.key].id
   tags = {
     synthetic_group_key  = each.value.group.name
     synthetic_canary_key = each.value.canary.name
   }
   depends_on = [
-    null_resource.archive_url_python
+    terraform_data.archive_url_python
   ]
-}
-
-resource "local_file" "script_custom_python" {
-  for_each        = local.python_synthetics_custom
-  content         = try(local.request_scripts_map[each.value.canary.request_script_ref].content, each.value.canary.request_script)
-  filename        = "${path.module}/sources/custom/${each.key}/python/${split(".", each.value.resolved_handler)[0]}.py"
-  file_permission = "0644"
 }
 
 resource "terraform_data" "script_custom_python" {
-  for_each = local.python_synthetics_custom
-  input = {
-    zip_file = local.zip_files_python[each.key].zip_file_path
-    sha256   = "${local_file.script_custom_python[each.key].content_sha256}-${each.value.resolved_runtime_version}-${local.group_force_rebuild[each.value.group.name]}"
-  }
-  triggers_replace = [
-    local_file.script_custom_python[each.key].content_sha256,
-    each.value.resolved_runtime_version,
-    local.group_force_rebuild[each.value.group.name],
-  ]
-  provisioner "local-exec" {
-    command     = "zip -r /tmp/${each.key}-custom.zip ."
-    working_dir = "${path.module}/sources/custom/${each.key}/"
-  }
-  provisioner "local-exec" {
-    command = "mv /tmp/${each.key}-custom.zip ${local.zip_files_python[each.key].zip_file_path}"
-  }
-  depends_on = [
-    local_file.script_custom_python,
-  ]
-}
+  for_each         = local.python_synthetics_custom
+  triggers_replace = timestamp()
 
+  provisioner "local-exec" {
+    command = <<-EOT
+      set -eu
+      staging_directory=$(mktemp -d)
+      trap 'rm -rf "$staging_directory"' EXIT
+      mkdir -p "$staging_directory/$(dirname "$SCRIPT_PATH")"
+      printf '%s' "$SCRIPT_CONTENT" > "$staging_directory/$SCRIPT_PATH"
+      mkdir -p "$(dirname "$ZIP_FILE")"
+      rm -f "$ZIP_FILE"
+      cd "$staging_directory"
+      zip -q -r "$ZIP_FILE" .
+    EOT
+    environment = {
+      SCRIPT_CONTENT = try(local.request_scripts_map[each.value.canary.request_script_ref].content, each.value.canary.request_script)
+      SCRIPT_PATH    = "python/${split(".", each.value.resolved_handler)[0]}.py"
+      ZIP_FILE       = abspath(local.zip_files_python[each.key].zip_file_path)
+    }
+  }
+}
 
 # Generic for both Node.js and Python custom scripts
 resource "aws_s3_object" "script_custom" {
   for_each    = merge(local.python_synthetics_custom, local.nodejs_synthetics_custom)
   bucket      = local.s3_location_bucket_name
   key         = try(local.zip_files_nodejs[each.key].bucket_key, local.zip_files_python[each.key].bucket_key)
-  source      = try(terraform_data.script_custom_node[each.key].output.zip_file, terraform_data.script_custom_python[each.key].output.zip_file)
-  source_hash = try(terraform_data.script_custom_node[each.key].output.sha256, terraform_data.script_custom_python[each.key].output.sha256)
+  source      = try(local.zip_files_nodejs[each.key].zip_file_path, local.zip_files_python[each.key].zip_file_path)
+  source_hash = try(terraform_data.script_custom_node[each.key].id, terraform_data.script_custom_python[each.key].id)
   tags = {
     synthetic_group_key  = each.value.group.name
     synthetic_canary_key = each.value.canary.name
