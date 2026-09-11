@@ -74,7 +74,7 @@ resource "null_resource" "stage_python" {
   }
   provisioner "local-exec" {
     when    = destroy
-    command = "rm -rf ${self.triggers.staging_directory}"
+    command = "staging_directory='${try(self.triggers.staging_directory, "")}' && test -z \"$staging_directory\" || rm -rf \"$staging_directory\""
   }
 }
 
