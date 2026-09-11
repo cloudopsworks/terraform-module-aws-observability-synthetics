@@ -30,6 +30,7 @@ description: |-
   - Flexible scheduling with cron and rate expressions
   - Schedule retry and runtime ephemeral storage configuration
   - Environment variable configuration for runtime parameters
+  - SecureString SSM Parameter Store configuration for standard canaries
   - Organized canary grouping for logical separation
   - Customizable retention policies for test artifacts
 
@@ -84,6 +85,16 @@ usage: |-
   ```
 
   The scaffold command generates `terragrunt.hcl`, `inputs.yaml`, and `local-tags.json` in the current directory.
+
+  ### Standard canary configuration
+
+  For standard `URL`, `API`, `JSURL`, and `TRACEURL` canaries (including their request-type aliases), the module stores the rendered
+  `requests` configuration in a per-canary AWS Systems Manager Parameter Store `SecureString`.
+  Its name is `synth-<canary-name>-<system-name>-config`, matching the canary naming convention.
+  The canary receives that name through `CONFIG_SSM_PARAMETER_NAME` and retrieves it with
+  `ssm:GetParameter` and decryption enabled. The generated execution-role policy is scoped to
+  parameters belonging to the role's group and to their SSM KMS encryption context. Custom
+  `SCRIPT` canaries continue to manage their own configuration and do not receive this parameter.
 
   ### Generated `inputs.yaml`
 

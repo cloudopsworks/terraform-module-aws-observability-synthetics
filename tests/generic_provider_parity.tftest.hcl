@@ -58,6 +58,31 @@ run "generic_consumers_plan" {
   }
 
   assert {
+    condition     = length(aws_ssm_parameter.canary_config) == 3
+    error_message = "Only standard canaries should receive SSM configuration parameters."
+  }
+
+  assert {
+    condition     = alltrue([for parameter in aws_ssm_parameter.canary_config : parameter.type == "SecureString"])
+    error_message = "Standard canary configuration parameters must be SecureString values."
+  }
+
+  assert {
+    condition     = aws_ssm_parameter.canary_config["consumer-b-service-health"].name == "synth-service-health-observability-prod-production-001-usea1-config"
+    error_message = "SSM configuration parameter names must follow the Synthetics canary naming convention."
+  }
+
+  assert {
+    condition     = aws_synthetics_canary.this["consumer-b-service-health"].run_config[0].environment_variables["CONFIG_SSM_PARAMETER_NAME"] == aws_ssm_parameter.canary_config["consumer-b-service-health"].name
+    error_message = "Standard canaries must receive their SSM configuration parameter name at runtime."
+  }
+
+  assert {
+    condition     = !contains(keys(aws_ssm_parameter.canary_config), "consumer-a-script-ref")
+    error_message = "Custom canaries must not receive standard-handler SSM configuration parameters."
+  }
+
+  assert {
     condition     = aws_synthetics_canary.this["consumer-a-script-ref"].handler == "custom_handler.handler"
     error_message = "Reusable script handler should be inherited for Consumer A script-ref."
   }
@@ -68,7 +93,7 @@ run "generic_consumers_plan" {
   }
 
   assert {
-    condition     = aws_synthetics_canary.this["consumer-b-service-health"].runtime_version == "syn-nodejs-puppeteer-16.0"
+    condition     = aws_synthetics_canary.this["consumer-b-service-health"].runtime_version == "syn-nodejs-puppeteer-17.0"
     error_message = "TRACEURL should retain the Node.js Synthetics runtime."
   }
 

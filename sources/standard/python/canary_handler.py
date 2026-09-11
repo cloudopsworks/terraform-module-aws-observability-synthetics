@@ -1,10 +1,12 @@
 import os
+import boto3
 import yaml
 import time
 import json
 import urllib3
 import certifi
 from typing import Dict, Any, Tuple
+from botocore.exceptions import BotoCoreError, ClientError
 import traceback
 
 # AWS Synthetics imports
@@ -20,33 +22,44 @@ http = urllib3.PoolManager(
 )
 
 
-def load_yaml_config(file_path: str) -> Dict[str, Any]:
+ssm = boto3.client('ssm')
+
+
+def load_yaml_config(parameter_name: str) -> Dict[str, Any]:
     """
-    Load and parse the YAML configuration file.
+    Load and parse the YAML configuration stored in AWS Systems Manager Parameter Store.
 
     Args:
-        file_path: Path to the YAML file
+        parameter_name: Name of the SecureString configuration parameter
 
     Returns:
         Dictionary containing the parsed YAML data
 
     Raises:
-        Exception: If the file cannot be found or parsed
+        Exception: If the parameter cannot be retrieved or parsed
     """
+    if not parameter_name:
+        raise ValueError("CONFIG_SSM_PARAMETER_NAME must name the canary configuration parameter")
+
     try:
-        logger.info(f"Loading configuration from {file_path}")
-        with open(file_path, 'r') as file:
-            config = yaml.safe_load(file)
-            logger.info("Configuration loaded successfully")
-            return config
-    except FileNotFoundError:
-        logger.error(f"Configuration file not found: {file_path}")
+        logger.info(f"Loading configuration from SSM parameter {parameter_name}")
+        response = ssm.get_parameter(Name=parameter_name, WithDecryption=True)
+        config = yaml.safe_load(response['Parameter']['Value'])
+
+        if not isinstance(config, dict):
+            raise ValueError("SSM parameter configuration must contain a YAML object")
+
+        logger.info("Configuration loaded successfully from SSM Parameter Store")
+        return config
+    except ClientError as error:
+        error_code = error.response.get('Error', {}).get('Code', 'unknown')
+        logger.error(f"Unable to retrieve configuration parameter {parameter_name}: {error_code}")
         raise
-    except yaml.YAMLError as e:
-        logger.error(f"Error parsing YAML file: {str(e)}")
+    except BotoCoreError as error:
+        logger.error(f"Unable to retrieve configuration parameter {parameter_name}: {type(error).__name__}")
         raise
-    except Exception as e:
-        logger.error(f"Unexpected error loading configuration: {str(e)}")
+    except yaml.YAMLError:
+        logger.error(f"Configuration parameter {parameter_name} does not contain valid YAML")
         raise
 
 def validate_request_config(request: Dict[str, Any]) -> None:
@@ -333,11 +346,8 @@ def handler(event, context):
     try:
         logger.info("Starting AWS Synthetics canary")
 
-        # Get configuration file path from environment or use default
-        config_path = os.environ.get('CONFIG_PATH', '/tmp/config.yaml')
-
-        # Load configuration
-        config = load_yaml_config(config_path)
+        # Load the SecureString configuration for this canary from Parameter Store.
+        config = load_yaml_config(os.environ.get('CONFIG_SSM_PARAMETER_NAME'))
 
         # Validate configuration
         if 'requests' not in config or not config['requests']:

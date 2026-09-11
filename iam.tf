@@ -82,6 +82,46 @@ data "aws_iam_policy_document" "synthetic_policy" {
       "arn:${data.aws_partition.current.partition}:logs:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/cwsyn-*:*"
     ]
   }
+  dynamic "statement" {
+    for_each = length(local.standard_synthetic_keys_by_group[each.key]) == 0 ? [] : [local.standard_synthetic_keys_by_group[each.key]]
+    content {
+      sid    = "AllowCanaryConfigRead"
+      effect = "Allow"
+      actions = [
+        "ssm:GetParameter",
+      ]
+      resources = [
+        for key in statement.value : aws_ssm_parameter.canary_config[key].arn
+      ]
+    }
+  }
+  dynamic "statement" {
+    for_each = length(local.standard_synthetic_keys_by_group[each.key]) == 0 ? [] : [local.standard_synthetic_keys_by_group[each.key]]
+    content {
+      sid    = "AllowCanaryConfigDecryption"
+      effect = "Allow"
+      actions = [
+        "kms:Decrypt",
+      ]
+      resources = [
+        "arn:${data.aws_partition.current.partition}:kms:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:key/*",
+      ]
+      condition {
+        test     = "StringEquals"
+        variable = "kms:ViaService"
+        values = [
+          "ssm.${data.aws_region.current.region}.amazonaws.com",
+        ]
+      }
+      condition {
+        test     = "ForAnyValue:StringEquals"
+        variable = "kms:EncryptionContext:PARAMETER_ARN"
+        values = [
+          for key in statement.value : aws_ssm_parameter.canary_config[key].arn
+        ]
+      }
+    }
+  }
   statement {
     sid    = "AllowSyntheticsXray"
     effect = "Allow"

@@ -10,8 +10,6 @@
 locals {
   zip_files_nodejs = {
     for key, content in local.synthetics : key => {
-      file_path     = "${path.module}/sources/standard/${key}/nodejs/"
-      file_name     = "${key}_config.yaml"
       bucket_key    = "${local.code_package_prefix}/${key}.zip"
       zip_file_path = "${path.module}/scripts/${key}.zip"
     }
@@ -25,7 +23,8 @@ locals {
     for key, synth in local.synthetics : key => synth
     if synth.is_nodejs && synth.script_configuration.is_custom
   }
-  nodejs_scripts_sha = sha256(join("", [for item in fileset("${path.module}", "sources/standard/nodejs/**/*.js") : filesha256(item)]))
+  nodejs_scripts_sha      = sha256(join("", [for item in fileset("${path.module}", "sources/standard/nodejs/**/*.js") : filesha256(item)]))
+  nodejs_dependencies_sha = sha256("js-yaml@4.1.0,@aws-sdk/client-ssm@3.1130.0")
   # Runtime version is part of the packaged code identity: the AWS Synthetics API
   # rejects UpdateCanary when the runtime changes without a Code payload, and the
   # provider only sends Code when s3_bucket/s3_key/s3_version/handler change.
@@ -41,29 +40,15 @@ locals {
   # mode to the staged copy and the next cp cannot open the destination. -f removes the
   # destination first, and chmod restores write permission so anything copied out of
   # stage/ later is writable too.
-  stage_nodejs_command = "npm install --prefix ./stage/nodejs --no-save --no-package-lock --omit=dev --cpu=x64 --os=linux js-yaml && cp -rf ./nodejs/ ./stage/nodejs/ && chmod -R u+w ./stage/nodejs"
-}
-
-resource "local_file" "script_config_nodejs" {
-  for_each        = local.nodejs_synthetics_url
-  content         = local.canary_requests_content[each.key]
-  filename        = format("%s%s", local.zip_files_nodejs[each.key].file_path, local.zip_files_nodejs[each.key].file_name)
-  file_permission = "0644"
-  depends_on = [
-    null_resource.stage_nodejs
-  ]
-  lifecycle {
-    replace_triggered_by = [
-      null_resource.stage_nodejs
-    ]
-  }
+  stage_nodejs_command = "npm install --prefix ./stage/nodejs --no-save --no-package-lock --omit=dev --cpu=x64 --os=linux js-yaml@4.1.0 @aws-sdk/client-ssm@3.1130.0 && cp -rf ./nodejs/ ./stage/nodejs/ && chmod -R u+w ./stage/nodejs"
 }
 
 resource "null_resource" "stage_nodejs" {
   triggers = {
-    scripts_sha  = local.nodejs_scripts_sha
-    runtimes_sha = local.nodejs_runtimes_sha
-    all_times    = timestamp()
+    scripts_sha      = local.nodejs_scripts_sha
+    dependencies_sha = local.nodejs_dependencies_sha
+    runtimes_sha     = local.nodejs_runtimes_sha
+    all_times        = timestamp()
   }
   provisioner "local-exec" {
     command     = local.stage_nodejs_command
@@ -74,9 +59,9 @@ resource "null_resource" "stage_nodejs" {
 resource "null_resource" "archive_url_nodejs" {
   for_each = local.nodejs_synthetics_url
   triggers = {
-    script_config   = local_file.script_config_nodejs[each.key].content_sha256
-    scripts_sha     = local.nodejs_scripts_sha
-    runtime_version = each.value.resolved_runtime_version
+    scripts_sha      = local.nodejs_scripts_sha
+    dependencies_sha = local.nodejs_dependencies_sha
+    runtime_version  = each.value.resolved_runtime_version
   }
   provisioner "local-exec" {
     command     = "test -d ./stage/nodejs || (${local.stage_nodejs_command})"
@@ -93,44 +78,21 @@ resource "null_resource" "archive_url_nodejs" {
   provisioner "local-exec" {
     command = "mv /tmp/${each.key}.zip ${local.zip_files_nodejs[each.key].zip_file_path}"
   }
-  depends_on = [
-    local_file.script_config_nodejs
-  ]
 }
 
-# resource "archive_file" "script_url_nodejs" {
-#   for_each    = local.nodejs_synthetics_url
-#   output_path = local.zip_files_nodejs[each.key].zip_file_path
-#   type        = "zip"
-#   source_dir  = "${path.module}/sources/standard/${each.key}/"
-#   excludes = [
-#     "**/example*.yaml",
-#     "**/requirements.txt",
-#   ]
-#   depends_on = [
-#     null_resource.this_nodejs,
-#     local_file.script_config_nodejs
-#   ]
-#   lifecycle {
-#     replace_triggered_by = [
-#       local_file.script_config_nodejs[each.key].content_sha256,
-#     ]
-#   }
-# }
 
 resource "aws_s3_object" "script_url_nodejs" {
   for_each    = local.nodejs_synthetics_url
   bucket      = local.s3_location_bucket_name
   key         = local.zip_files_nodejs[each.key].bucket_key
   source      = local.zip_files_nodejs[each.key].zip_file_path
-  source_hash = "${local.hash_requests_content[each.key]}-${local.nodejs_scripts_sha}-${each.value.resolved_runtime_version}"
+  source_hash = "${local.nodejs_scripts_sha}-${local.nodejs_dependencies_sha}-${each.value.resolved_runtime_version}"
   tags = {
     synthetic_group_key  = each.value.group.name
     synthetic_canary_key = each.value.canary.name
   }
   depends_on = [
-    null_resource.archive_url_nodejs,
-    local_file.script_config_nodejs
+    null_resource.archive_url_nodejs
   ]
 }
 
