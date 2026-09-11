@@ -24,13 +24,8 @@ locals {
     })
     if !synthetic.script_configuration.is_custom
   }
-  hash_requests_content = {
-    for key, content in local.canary_requests_content : key => upper(sha256(content))
-  }
   zip_files_python = {
     for key, content in local.synthetics : key => {
-      file_path     = "${path.module}/sources/standard/${key}/python/"
-      file_name     = "${key}_config.yaml"
       bucket_key    = "${local.code_package_prefix}/${key}.zip"
       zip_file_path = "${path.module}/scripts/${key}.zip"
     }
@@ -44,61 +39,55 @@ locals {
     for key, synth in local.synthetics : key => synth
     if synth.is_python && synth.script_configuration.is_custom
   }
-  python_scripts_sha = sha256(join("", [for item in fileset("${path.module}", "sources/standard/python/**/*.py") : filesha256(item)]))
+  python_staging_directory = "/tmp/cloudopsworks-synthetics-python-${random_id.python_staging.hex}"
+  python_scripts_sha       = sha256(join("", [for item in fileset("${path.module}", "sources/standard/python/**/*.py") : filesha256(item)]))
+  python_dependencies_sha  = filesha256("${path.module}/sources/standard/requirements.txt")
   # Runtime version is part of the packaged code identity: the AWS Synthetics API
   # rejects UpdateCanary when the runtime changes without a Code payload, and the
   # provider only sends Code when s3_bucket/s3_key/s3_version/handler change.
   python_runtimes_sha = sha256(join(",", [for key in sort(keys(local.python_synthetics_url)) : local.python_synthetics_url[key].resolved_runtime_version]))
-  # Staging is a filesystem side effect, not tracked state. The archive step must be
-  # able to rebuild it on its own: a tainted archive retry, or a fresh module cache,
-  # leaves ./stage/python missing while stage_python has no trigger change to re-run on.
+  # Staging is a filesystem side effect. Each apply uses a unique directory under
+  # /tmp so module sources and concurrent module runs never share package contents.
   # Terragrunt writes its module cache read-only (0444), so a plain cp propagates that
   # mode to the staged copy and the next cp cannot open the destination. -f removes the
   # destination first, and chmod restores write permission so anything copied out of
-  # stage/ later is writable too.
-  stage_python_command = "python3 -m pip install -r requirements.txt --target ./stage/python --platform manylinux_2_17_x86_64 --python-version 3.11 --implementation cp --only-binary=:all: --no-deps --upgrade && cp -rf ./python/ ./stage/python/ && chmod -R u+w ./stage/python"
+  # the temporary staging directory later is writable too.
+  stage_python_command = "python3 -m pip install -r requirements.txt --target ${local.python_staging_directory}/python --platform manylinux_2_17_x86_64 --python-version 3.11 --implementation cp --only-binary=:all: --no-deps --upgrade && cp -rf ./python/ ${local.python_staging_directory}/python/ && chmod -R u+w ${local.python_staging_directory}/python"
 }
 
-resource "local_file" "script_config_python" {
-  for_each        = local.python_synthetics_url
-  content         = local.canary_requests_content[each.key]
-  filename        = format("%s%s", local.zip_files_python[each.key].file_path, local.zip_files_python[each.key].file_name)
-  file_permission = "0644"
-  depends_on = [
-    null_resource.stage_python
-  ]
-  lifecycle {
-    replace_triggered_by = [
-      null_resource.stage_python
-    ]
+resource "random_id" "python_staging" {
+  byte_length = 8
+  keepers = {
+    apply_timestamp = timestamp()
   }
 }
 
 resource "null_resource" "stage_python" {
   triggers = {
-    sources_sha  = local.hash_sources
-    runtimes_sha = local.python_runtimes_sha
-    all_times    = timestamp()
+    sources_sha       = local.hash_sources
+    runtimes_sha      = local.python_runtimes_sha
+    staging_directory = local.python_staging_directory
   }
   provisioner "local-exec" {
-    command     = local.stage_python_command
+    command     = "rm -rf ${local.python_staging_directory} && mkdir -p ${local.python_staging_directory} && ${local.stage_python_command}"
     working_dir = "${path.module}/sources/standard"
+  }
+  provisioner "local-exec" {
+    when    = destroy
+    command = "staging_directory='${try(self.triggers.staging_directory, "")}' && test -z \"$staging_directory\" || rm -rf \"$staging_directory\""
   }
 }
 
 resource "null_resource" "archive_url_python" {
   for_each = local.python_synthetics_url
   triggers = {
-    script_config      = local_file.script_config_python[each.key].content_sha256
-    python_scripts_sha = local.python_scripts_sha
-    runtime_version    = each.value.resolved_runtime_version
+    python_scripts_sha      = local.python_scripts_sha
+    python_dependencies_sha = local.python_dependencies_sha
+    runtime_version         = each.value.resolved_runtime_version
+    force_rebuild           = local.group_force_rebuild[each.value.group.name]
   }
   provisioner "local-exec" {
-    command     = "test -d ./stage/python || (${local.stage_python_command})"
-    working_dir = "${path.module}/sources/standard"
-  }
-  provisioner "local-exec" {
-    command     = "cp -rf ./stage/python ./${each.key}/"
+    command     = "cp -rf ${local.python_staging_directory}/python ./${each.key}/"
     working_dir = "${path.module}/sources/standard"
   }
   provisioner "local-exec" {
@@ -109,7 +98,7 @@ resource "null_resource" "archive_url_python" {
     command = "mv /tmp/${each.key}.zip ${local.zip_files_python[each.key].zip_file_path}"
   }
   depends_on = [
-    local_file.script_config_python
+    null_resource.stage_python,
   ]
 }
 
@@ -118,14 +107,13 @@ resource "aws_s3_object" "script_url_python" {
   bucket      = local.s3_location_bucket_name
   key         = local.zip_files_python[each.key].bucket_key
   source      = local.zip_files_python[each.key].zip_file_path
-  source_hash = "${local.hash_requests_content[each.key]}-${local.python_scripts_sha}-${each.value.resolved_runtime_version}"
+  source_hash = "${local.python_scripts_sha}-${local.python_dependencies_sha}-${each.value.resolved_runtime_version}-${local.group_force_rebuild[each.value.group.name]}"
   tags = {
     synthetic_group_key  = each.value.group.name
     synthetic_canary_key = each.value.canary.name
   }
   depends_on = [
-    null_resource.archive_url_python,
-    local_file.script_config_python
+    null_resource.archive_url_python
   ]
 }
 
@@ -140,11 +128,12 @@ resource "terraform_data" "script_custom_python" {
   for_each = local.python_synthetics_custom
   input = {
     zip_file = local.zip_files_python[each.key].zip_file_path
-    sha256   = "${local_file.script_custom_python[each.key].content_sha256}-${each.value.resolved_runtime_version}"
+    sha256   = "${local_file.script_custom_python[each.key].content_sha256}-${each.value.resolved_runtime_version}-${local.group_force_rebuild[each.value.group.name]}"
   }
   triggers_replace = [
     local_file.script_custom_python[each.key].content_sha256,
-    each.value.resolved_runtime_version
+    each.value.resolved_runtime_version,
+    local.group_force_rebuild[each.value.group.name],
   ]
   provisioner "local-exec" {
     command     = "zip -r /tmp/${each.key}-custom.zip ."
@@ -158,24 +147,6 @@ resource "terraform_data" "script_custom_python" {
   ]
 }
 
-# resource "archive_file" "script_custom_python" {
-#   for_each    = local.python_synthetics_custom
-#   output_path = local.zip_files_python[each.key].zip_file_path
-#   type        = "zip"
-#   source_dir  = "${path.module}/sources/custom/${each.key}/"
-#   excludes = [
-#     "**/example*.yaml",
-#     "**/requirements.txt",
-#   ]
-#   depends_on = [
-#     local_file.script_custom_python,
-#   ]
-#   lifecycle {
-#     replace_triggered_by = [
-#       local_file.script_custom_python[each.key].content_sha256,
-#     ]
-#   }
-# }
 
 # Generic for both Node.js and Python custom scripts
 resource "aws_s3_object" "script_custom" {

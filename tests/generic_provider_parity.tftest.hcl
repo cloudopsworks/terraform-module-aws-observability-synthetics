@@ -1,4 +1,9 @@
 mock_provider "aws" {
+  mock_data "aws_partition" {
+    defaults = {
+      partition = "aws"
+    }
+  }
   mock_data "aws_region" {
     defaults = {
       region = "us-east-1"
@@ -58,6 +63,36 @@ run "generic_consumers_plan" {
   }
 
   assert {
+    condition     = length(aws_ssm_parameter.canary_config) == 3
+    error_message = "Only standard canaries should receive SSM configuration parameters."
+  }
+
+  assert {
+    condition     = alltrue([for parameter in aws_ssm_parameter.canary_config : parameter.type == "SecureString"])
+    error_message = "Standard canary configuration parameters must be SecureString values."
+  }
+
+  assert {
+    condition     = aws_ssm_parameter.canary_config["consumer-b-service-health"].name == "synth-service-health-observability-prod-production-001-usea1-config"
+    error_message = "SSM configuration parameter names must follow the Synthetics canary naming convention."
+  }
+
+  assert {
+    condition     = local.canary_config_parameter_arns["consumer-b-service-health"] == "arn:aws:ssm:us-east-1:123456789012:parameter/synth-service-health-observability-prod-production-001-usea1-config"
+    error_message = "Canary configuration parameter ARNs must be available when the IAM policy is planned."
+  }
+
+  assert {
+    condition     = aws_synthetics_canary.this["consumer-b-service-health"].run_config[0].environment_variables["CONFIG_SSM_PARAMETER_NAME"] == aws_ssm_parameter.canary_config["consumer-b-service-health"].name
+    error_message = "Standard canaries must receive their SSM configuration parameter name at runtime."
+  }
+
+  assert {
+    condition     = !contains(keys(aws_ssm_parameter.canary_config), "consumer-a-script-ref")
+    error_message = "Custom canaries must not receive standard-handler SSM configuration parameters."
+  }
+
+  assert {
     condition     = aws_synthetics_canary.this["consumer-a-script-ref"].handler == "custom_handler.handler"
     error_message = "Reusable script handler should be inherited for Consumer A script-ref."
   }
@@ -68,7 +103,7 @@ run "generic_consumers_plan" {
   }
 
   assert {
-    condition     = aws_synthetics_canary.this["consumer-b-service-health"].runtime_version == "syn-nodejs-puppeteer-16.0"
+    condition     = aws_synthetics_canary.this["consumer-b-service-health"].runtime_version == "syn-nodejs-puppeteer-17.0"
     error_message = "TRACEURL should retain the Node.js Synthetics runtime."
   }
 
@@ -80,6 +115,21 @@ run "generic_consumers_plan" {
   assert {
     condition     = aws_synthetics_canary.this["consumer-c-private-post"].s3_key == "synthetics/packages/consumer-c-private-post.zip"
     error_message = "Code package prefix should be applied to canary package keys."
+  }
+
+  assert {
+    condition     = endswith(aws_s3_object.script_url_nodejs["consumer-b-service-health"].source_hash, "-true")
+    error_message = "Changing force_rebuild must refresh every Node.js standard canary package in its group."
+  }
+
+  assert {
+    condition     = endswith(aws_s3_object.script_url_python["consumer-c-legacy-invalid-assertion"].source_hash, "-false")
+    error_message = "A group without force_rebuild must retain the stable Python package identity."
+  }
+
+  assert {
+    condition     = endswith(terraform_data.script_custom_node["consumer-a-script-ref"].input.sha256, "-true")
+    error_message = "Changing force_rebuild must rebuild custom canary ZIP archives in its group."
   }
 
   assert {

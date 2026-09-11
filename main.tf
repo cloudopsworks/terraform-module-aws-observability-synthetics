@@ -133,8 +133,30 @@ locals {
       is_python                = strcontains(local.synthetics_runtime_versions[key], "python")
     })
   }
+  standard_synthetics = {
+    for key, synthetic in local.synthetics : key => synthetic
+    if !synthetic.script_configuration.is_custom
+  }
+  canary_config_parameter_arns = {
+    for key, synthetic in local.standard_synthetics : key => format(
+      "arn:%s:ssm:%s:%s:parameter/%s-config",
+      data.aws_partition.current.partition,
+      data.aws_region.current.region,
+      data.aws_caller_identity.current.account_id,
+      synthetic.canary_final_name,
+    )
+  }
+  standard_synthetic_keys_by_group = {
+    for group_name in keys(local.synth_groups) : group_name => [
+      for key, synthetic in local.standard_synthetics : key
+      if synthetic.group.name == group_name
+    ]
+  }
   synth_groups = {
     for group in var.groups : group.name => group
+  }
+  group_force_rebuild = {
+    for group_name, group in local.synth_groups : group_name => try(tobool(group.force_rebuild), false)
   }
   s3_location_bucket_name = var.create_artifacts_bucket ? module.synthetics_artifacts.s3_bucket_id : data.aws_s3_bucket.artifacts[0].bucket
 }
@@ -200,13 +222,12 @@ resource "aws_synthetics_canary" "this" {
   }
 
   run_config {
-    environment_variables = merge(each.value.is_nodejs ? {
-      CONFIG_PATH = "/opt/nodejs/${local.zip_files_nodejs[each.key].file_name}"
-      } : {
-      CONFIG_PATH = "/opt/python/${local.zip_files_python[each.key].file_name}"
-      },
+    environment_variables = merge(
       try(each.value.group.default_run_config.environment_variables, {}),
-      try(each.value.canary.run_config.environment_variables, {})
+      try(each.value.canary.run_config.environment_variables, {}),
+      each.value.script_configuration.is_custom ? {} : {
+        CONFIG_SSM_PARAMETER_NAME = aws_ssm_parameter.canary_config[each.key].name
+      }
     )
     timeout_in_seconds = try(each.value.canary.run_config.timeout, each.value.group.default_run_config.timeout, null)
     memory_in_mb       = try(each.value.canary.run_config.memory_mb, each.value.group.default_run_config.memory_mb, null)
