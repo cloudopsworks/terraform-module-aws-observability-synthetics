@@ -23,15 +23,15 @@ locals {
     for key, synth in local.synthetics : key => synth
     if synth.is_nodejs && synth.script_configuration.is_custom
   }
-  nodejs_scripts_sha      = sha256(join("", [for item in fileset("${path.module}", "sources/standard/nodejs/**/*.js") : filesha256(item)]))
-  nodejs_dependencies_sha = sha256("js-yaml@4.1.0,@aws-sdk/client-ssm@3.1130.0")
+  nodejs_staging_directory = "/tmp/cloudopsworks-synthetics-nodejs-${random_id.nodejs_staging.hex}"
+  nodejs_scripts_sha       = sha256(join("", [for item in fileset("${path.module}", "sources/standard/nodejs/**/*.js") : filesha256(item)]))
+  nodejs_dependencies_sha  = sha256("js-yaml@4.1.0,@aws-sdk/client-ssm@3.1130.0")
   # Runtime version is part of the packaged code identity: the AWS Synthetics API
   # rejects UpdateCanary when the runtime changes without a Code payload, and the
   # provider only sends Code when s3_bucket/s3_key/s3_version/handler change.
   nodejs_runtimes_sha = sha256(join(",", [for key in sort(keys(local.nodejs_synthetics_url)) : local.nodejs_synthetics_url[key].resolved_runtime_version]))
-  # Staging is a filesystem side effect, not tracked state. The archive step must be
-  # able to rebuild it on its own: a tainted archive retry, or a fresh module cache,
-  # leaves ./stage/nodejs missing while stage_nodejs has no trigger change to re-run on.
+  # Staging is a filesystem side effect. Each apply uses a unique directory under
+  # /tmp so module sources and concurrent module runs never share package contents.
   # --cpu/--os are the npm configs that actually cross-target the Lambda x86_64 Linux
   # runtime. The former --target_arch/--target_platform/--no-package-json were never
   # npm configs at all: npm 11 ignores them with a warning and npm 12 rejects them
@@ -39,20 +39,31 @@ locals {
   # Terragrunt writes its module cache read-only (0444), so a plain cp propagates that
   # mode to the staged copy and the next cp cannot open the destination. -f removes the
   # destination first, and chmod restores write permission so anything copied out of
-  # stage/ later is writable too.
-  stage_nodejs_command = "npm install --prefix ./stage/nodejs --no-save --no-package-lock --omit=dev --cpu=x64 --os=linux js-yaml@4.1.0 @aws-sdk/client-ssm@3.1130.0 && cp -rf ./nodejs/ ./stage/nodejs/ && chmod -R u+w ./stage/nodejs"
+  # the temporary staging directory later is writable too.
+  stage_nodejs_command = "npm install --prefix ${local.nodejs_staging_directory}/nodejs --no-save --no-package-lock --omit=dev --cpu=x64 --os=linux js-yaml@4.1.0 @aws-sdk/client-ssm@3.1130.0 && cp -rf ./nodejs/ ${local.nodejs_staging_directory}/nodejs/ && chmod -R u+w ${local.nodejs_staging_directory}/nodejs"
+}
+
+resource "random_id" "nodejs_staging" {
+  byte_length = 8
+  keepers = {
+    apply_timestamp = timestamp()
+  }
 }
 
 resource "null_resource" "stage_nodejs" {
   triggers = {
-    scripts_sha      = local.nodejs_scripts_sha
-    dependencies_sha = local.nodejs_dependencies_sha
-    runtimes_sha     = local.nodejs_runtimes_sha
-    all_times        = timestamp()
+    scripts_sha       = local.nodejs_scripts_sha
+    dependencies_sha  = local.nodejs_dependencies_sha
+    runtimes_sha      = local.nodejs_runtimes_sha
+    staging_directory = local.nodejs_staging_directory
   }
   provisioner "local-exec" {
-    command     = local.stage_nodejs_command
+    command     = "rm -rf ${local.nodejs_staging_directory} && mkdir -p ${local.nodejs_staging_directory} && ${local.stage_nodejs_command}"
     working_dir = "${path.module}/sources/standard"
+  }
+  provisioner "local-exec" {
+    when    = destroy
+    command = "rm -rf ${self.triggers.staging_directory}"
   }
 }
 
@@ -65,11 +76,7 @@ resource "null_resource" "archive_url_nodejs" {
     force_rebuild    = local.group_force_rebuild[each.value.group.name]
   }
   provisioner "local-exec" {
-    command     = "test -d ./stage/nodejs || (${local.stage_nodejs_command})"
-    working_dir = "${path.module}/sources/standard"
-  }
-  provisioner "local-exec" {
-    command     = "cp -rf ./stage/nodejs ./${each.key}/"
+    command     = "cp -rf ${local.nodejs_staging_directory}/nodejs ./${each.key}/"
     working_dir = "${path.module}/sources/standard"
   }
   provisioner "local-exec" {
@@ -79,6 +86,9 @@ resource "null_resource" "archive_url_nodejs" {
   provisioner "local-exec" {
     command = "mv /tmp/${each.key}.zip ${local.zip_files_nodejs[each.key].zip_file_path}"
   }
+  depends_on = [
+    null_resource.stage_nodejs,
+  ]
 }
 
 
