@@ -127,6 +127,7 @@ usage: |-
   #groups:
   #  - name: ""                                     # (Required) Name of the canary group
   #    tags: {}                                     # (Optional) Additional tags for the group
+  #    force_rebuild: false                         # (Optional) Change this flag to rebuild every group ZIP and re-upload it to S3, defaults to false
   #    vpc:
   #      enabled: true                              # (Optional) Override VPC for group, defaults to true
   #      ipv6_allowed_for_dual_stack: null          # (Optional) Allow IPv6 for dual-stack canaries in this group, defaults to module VPC setting

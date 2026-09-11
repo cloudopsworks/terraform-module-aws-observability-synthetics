@@ -118,6 +118,21 @@ run "generic_consumers_plan" {
   }
 
   assert {
+    condition     = endswith(aws_s3_object.script_url_nodejs["consumer-b-service-health"].source_hash, "-true")
+    error_message = "Changing force_rebuild must refresh every Node.js standard canary package in its group."
+  }
+
+  assert {
+    condition     = endswith(aws_s3_object.script_url_python["consumer-c-legacy-invalid-assertion"].source_hash, "-false")
+    error_message = "A group without force_rebuild must retain the stable Python package identity."
+  }
+
+  assert {
+    condition     = endswith(terraform_data.script_custom_node["consumer-a-script-ref"].input.sha256, "-true")
+    error_message = "Changing force_rebuild must rebuild custom canary ZIP archives in its group."
+  }
+
+  assert {
     condition     = length(aws_cloudwatch_metric_alarm.canary_failed["consumer-a-script-inline"].alarm_actions) == 2
     error_message = "Consumer A script-inline should include its own SNS topic ARN plus the default topic."
   }

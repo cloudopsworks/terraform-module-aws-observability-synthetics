@@ -12,6 +12,7 @@
 #   - name: "example-group"
 #     tags:                # (optional) Tags for the group
 #       Environment: "Production"
+#     force_rebuild: true | false # (optional) Change this flag to rebuild the group's ZIPs and re-upload them to S3, defaults to false
 #     vpc:
 #       enabled: true | false # (optional) Whether to enable VPC for the group, defaults to true
 #       ipv6_allowed_for_dual_stack: true | false # (optional) Allow IPv6 for dual-stack VPC canaries, defaults to null
@@ -91,7 +92,7 @@
 #             - sns_topic_name: "topic-name" # (optional) Name of the SNS topic for notifications
 #             - sns_topic_arn: "topic-name" # (optional) ARN of the SNS topic for notifications
 variable "groups" {
-  description = "Settings for the synthetics configurations"
+  description = "Settings for the synthetics configurations. Changing a group's optional force_rebuild flag rebuilds that group's ZIP archives and re-uploads them to S3."
   type        = any
   default     = []
 

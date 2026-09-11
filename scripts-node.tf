@@ -62,6 +62,7 @@ resource "null_resource" "archive_url_nodejs" {
     scripts_sha      = local.nodejs_scripts_sha
     dependencies_sha = local.nodejs_dependencies_sha
     runtime_version  = each.value.resolved_runtime_version
+    force_rebuild    = local.group_force_rebuild[each.value.group.name]
   }
   provisioner "local-exec" {
     command     = "test -d ./stage/nodejs || (${local.stage_nodejs_command})"
@@ -86,7 +87,7 @@ resource "aws_s3_object" "script_url_nodejs" {
   bucket      = local.s3_location_bucket_name
   key         = local.zip_files_nodejs[each.key].bucket_key
   source      = local.zip_files_nodejs[each.key].zip_file_path
-  source_hash = "${local.nodejs_scripts_sha}-${local.nodejs_dependencies_sha}-${each.value.resolved_runtime_version}"
+  source_hash = "${local.nodejs_scripts_sha}-${local.nodejs_dependencies_sha}-${each.value.resolved_runtime_version}-${local.group_force_rebuild[each.value.group.name]}"
   tags = {
     synthetic_group_key  = each.value.group.name
     synthetic_canary_key = each.value.canary.name
@@ -107,11 +108,12 @@ resource "terraform_data" "script_custom_node" {
   for_each = local.nodejs_synthetics_custom
   input = {
     zip_file = local.zip_files_nodejs[each.key].zip_file_path
-    sha256   = "${local_file.script_custom_node[each.key].content_sha256}-${each.value.resolved_runtime_version}"
+    sha256   = "${local_file.script_custom_node[each.key].content_sha256}-${each.value.resolved_runtime_version}-${local.group_force_rebuild[each.value.group.name]}"
   }
   triggers_replace = [
     local_file.script_custom_node[each.key].content_sha256,
-    each.value.resolved_runtime_version
+    each.value.resolved_runtime_version,
+    local.group_force_rebuild[each.value.group.name],
   ]
   provisioner "local-exec" {
     command     = "zip -r /tmp/${each.key}-custom.zip ."

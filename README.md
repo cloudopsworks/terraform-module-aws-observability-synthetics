@@ -154,6 +154,7 @@ vpc:
 #groups:
 #  - name: ""                                     # (Required) Name of the canary group
 #    tags: {}                                     # (Optional) Additional tags for the group
+#    force_rebuild: false                         # (Optional) Change this flag to rebuild every group ZIP and re-upload it to S3, defaults to false
 #    vpc:
 #      enabled: true                              # (Optional) Override VPC for group, defaults to true
 #      ipv6_allowed_for_dual_stack: null          # (Optional) Allow IPv6 for dual-stack canaries in this group, defaults to module VPC setting
@@ -543,7 +544,7 @@ Available targets:
 | <a name="input_create_artifacts_bucket"></a> [create\_artifacts\_bucket](#input\_create\_artifacts\_bucket) | (optional) Flag to create the S3 bucket for Synthetics canary artifacts, required if artifacts\_bucket is not provided | `bool` | `false` | no |
 | <a name="input_default_sns_topic_name"></a> [default\_sns\_topic\_name](#input\_default\_sns\_topic\_name) | (optional) Name of the SNS topic for notifications, defaults to empty string | `string` | `""` | no |
 | <a name="input_extra_tags"></a> [extra\_tags](#input\_extra\_tags) | Extra tags to add to the resources | `map(string)` | `{}` | no |
-| <a name="input_groups"></a> [groups](#input\_groups) | Settings for the synthetics configurations | `any` | `[]` | no |
+| <a name="input_groups"></a> [groups](#input\_groups) | Settings for the synthetics configurations. Changing a group's optional force\_rebuild flag rebuilds that group's ZIP archives and re-uploads them to S3. | `any` | `[]` | no |
 | <a name="input_is_hub"></a> [is\_hub](#input\_is\_hub) | Is this a hub or spoke configuration? | `bool` | `false` | no |
 | <a name="input_org"></a> [org](#input\_org) | Organization details | <pre>object({<br/>    organization_name = string<br/>    organization_unit = string<br/>    environment_type  = string<br/>    environment_name  = string<br/>  })</pre> | n/a | yes |
 | <a name="input_request_scripts"></a> [request\_scripts](#input\_request\_scripts) | (optional) Array of request scripts for the Synthetics canaries | <pre>list(object({<br/>    name            = string<br/>    content         = string<br/>    runtime_version = string<br/>    handler         = optional(string, "custom_handler.handler")<br/>  }))</pre> | `[]` | no |
