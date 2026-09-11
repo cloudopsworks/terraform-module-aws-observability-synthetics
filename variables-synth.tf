@@ -12,7 +12,6 @@
 #   - name: "example-group"
 #     tags:                # (optional) Tags for the group
 #       Environment: "Production"
-#     force_rebuild: true | false # (optional) Deprecated; ignored because every apply rebuilds and uploads all ZIPs, defaults to false
 #     vpc:
 #       enabled: true | false # (optional) Whether to enable VPC for the group, defaults to true
 #       ipv6_allowed_for_dual_stack: true | false # (optional) Allow IPv6 for dual-stack VPC canaries, defaults to null
@@ -92,7 +91,7 @@
 #             - sns_topic_name: "topic-name" # (optional) Name of the SNS topic for notifications
 #             - sns_topic_arn: "topic-name" # (optional) ARN of the SNS topic for notifications
 variable "groups" {
-  description = "Settings for the synthetics configurations. ZIP archives are rebuilt and uploaded on every apply; the optional force_rebuild flag is retained for compatibility but ignored."
+  description = "Settings for the synthetics configurations. ZIP archives are rebuilt and uploaded on every apply."
   type        = any
   default     = []
 

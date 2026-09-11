@@ -126,7 +126,7 @@ run "generic_consumers_plan" {
 
   assert {
     condition     = toset(keys(terraform_data.archive_url_python)) == toset(keys(aws_s3_object.script_url_python))
-    error_message = "Every Python standard upload must have an apply-time ZIP builder, including groups with force_rebuild=false."
+    error_message = "Every Python standard upload must have an apply-time ZIP builder."
   }
 
   assert {
