@@ -155,9 +155,6 @@ locals {
   synth_groups = {
     for group in var.groups : group.name => group
   }
-  group_force_rebuild = {
-    for group_name, group in local.synth_groups : group_name => try(tobool(group.force_rebuild), false)
-  }
   s3_location_bucket_name = var.create_artifacts_bucket ? module.synthetics_artifacts.s3_bucket_id : data.aws_s3_bucket.artifacts[0].bucket
 }
 
