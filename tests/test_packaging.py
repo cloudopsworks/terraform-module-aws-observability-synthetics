@@ -76,6 +76,15 @@ class PackagingWiringTests(unittest.TestCase):
                     rf"staging_directory\s*=\s*local\.{runtime}_staging_directory",
                 )
 
+    def test_staging_uses_runtime_provided_aws_sdks(self) -> None:
+        self.assertNotIn("@aws-sdk/", self.node)
+        self.assertNotRegex(self.python, r"\b(?:boto3|botocore)\b")
+        requirements = (ROOT / "sources/standard/requirements.txt").read_text()
+        packages = [line.strip() for line in requirements.splitlines()
+                    if line.strip() and not line.lstrip().startswith("#")]
+        self.assertFalse(any(re.match(r"(?:boto3|botocore)\b", package, re.I)
+                             for package in packages))
+
     def test_every_archive_and_custom_package_rebuilds_at_apply(self) -> None:
         for resource, source in (
             ("archive_url_nodejs", self.node),

@@ -26,7 +26,7 @@ locals {
   nodejs_staging_directory = "/tmp/cloudopsworks-synthetics-nodejs-${random_id.nodejs_staging.hex}"
   # Stage dependencies at apply time; no generated files are needed during plan.
   # Copy directory contents so Linux and macOS produce the same ZIP layout.
-  stage_nodejs_command = "npm install --prefix ${local.nodejs_staging_directory}/nodejs --no-save --no-package-lock --omit=dev --cpu=x64 --os=linux js-yaml@4.1.0 @aws-sdk/client-ssm@3.1130.0 && cp -rf ./nodejs/. ${local.nodejs_staging_directory}/nodejs/ && chmod -R u+w ${local.nodejs_staging_directory}/nodejs"
+  stage_nodejs_command = "npm install --prefix ${local.nodejs_staging_directory}/nodejs --no-save --no-package-lock --omit=dev --cpu=x64 --os=linux js-yaml@4.1.0 && cp -rf ./nodejs/. ${local.nodejs_staging_directory}/nodejs/ && chmod -R u+w ${local.nodejs_staging_directory}/nodejs"
 }
 
 resource "random_id" "nodejs_staging" {
